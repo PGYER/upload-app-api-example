@@ -26,7 +26,6 @@ $key = $res['data']['key'];
 
 // 开始上传
 $params = $res['data']['params'];
-$params['x-cos-meta-callback-url'] = 'http://www.pgyer.com/apiv2/app/apiCOSUploadCallback';  // [可选]指定回调地址，如果不指定，则使用默认的线上回调地址
 $params['file'] = new CURLFile(APP_PATH);  // 填写待上传文件的路径
 $httpcode = 0;
 
