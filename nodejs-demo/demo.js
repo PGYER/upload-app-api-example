@@ -33,7 +33,6 @@ function upload (apiKey, appPath, callback) {
     
       response.on('end', () => {
         const responseText = responseData.toString();
-        console.log(responseText);
         try {
           const responseInfo = JSON.parse(responseText);
           if (responseInfo.code === 1247) {
