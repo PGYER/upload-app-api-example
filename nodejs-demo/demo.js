@@ -8,10 +8,8 @@ const fs = require('fs');
 const querystring = require('querystring');
 const FormData = require('form-data');
 
-// const API_KEY_PRODUCTION = '<your api key>';
-const API_KEY_PRODUCTION = 'af02e1d493dfe74244e37076805866eb';
-// const APP_PATH = '<your app path>';
-const APP_PATH = './test.ipa';
+const API_KEY_PRODUCTION = '<your api key>';
+const APP_PATH = '<your app path>';
 
 function upload (apiKey, appPath, callback) {
   function getUploadResult (uploadData) {
