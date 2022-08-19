@@ -26,6 +26,8 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
     private UploadFileToServiceCallback uploadFileToServiceCallback;
     Timer timers = null;
 
+
+    //接口方法调用例子开始
     /**
      * 例子
      */
@@ -42,107 +44,139 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
         File uploadFile = new File(APP_PATH);//apk文件路径
         params.put("buildType", "android");
         String url = GET_TOKEN_URL;//
-        getToken(params, url, _api_key, uploadFile, new UploadFileToServiceCallback() {
-            @Override
-            public void onUploadBack(int code, String msg) {//查看上传是否成功 和 同步是否成功
-                if(code == FILE_UPLOAD_SUCCESSFUL){//文件长传成功等待同步
+        getToken(params, url, new HttpCallback() {
+            @java.lang.Override
+            public void onSuccess(int code, String data) {
+                JSONObject backData = new JSONObject(responseString);
+                int code = backData.getInt("code");
+                JSONObject jsonObject = backData.getJSONObject("data");
+                if(code == 0 && jsonObject != null){//获取成功
+                    JSONObject jsonObjectparams = jsonObject.getJSONObject("params");
+                    Map<String, String> params = new HashMap<>();
+                    String key = jsonObjectparams.getString("key");
+                    params.put("key",key);
+                    params.put("signature",jsonObjectparams.getString("signature"));
+                    params.put("x-cos-security-token",jsonObjectparams.getString("x-cos-security-token"));
+                    String url = jsonObject.getString("endpoint");
+                    uploadFilr(params, url, uploadFile, API_KEY_DEV, key);
+                } else {//获取失败
 
-                } else if(code == 1246){//数据正在同步等待两秒后再次请求
-                    timers = new Timer(2000, new ActionListener() {
+                }
+            }
+
+            @java.lang.Override
+            public void onError(int code, String data) {
+
+            }
+        })
+    }
+    /**
+     * 例子 上传文件
+     * @param url
+     */
+    public void uploadFilr(Map<String, String> params, String url ,File files, String apikey, String buildKey){
+        uploadFileToServer(params, url, files, new UploadFileToServiceCallback() {
+            @java.lang.Override
+            public void onUploadBack(int code, String msg) {
+                if(code == FILE_UPLOAD_SUCCESSFUL){
+                    //数据同步需要时间延时5秒请求同步结果
+                    timers = new Timer(5000, new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
                             if(timers != null){
                                 timers.stop();
                                 timers = null;
-                                uploadResult(msg);
+                                String url = "https://www.pgyer.com/apiv2/app/buildInfo?_api_key="+apikey+"&buildKey="+buildKey;
+                                uploadResult(url,uploadFileToServiceCallback);
                             }
                         }
                     });
                     timers.start();
-                } else {//上传成功了做相应操作
-
                 }
             }
 
-            @Override
+            @java.lang.Override
             public void onPackageSizeComputed(long param1Long) {//上传文件的大小 去做度更新UI
 
             }
 
-            @Override
+            @java.lang.Override
             public void onProgressChanged(float param1Long) {//上传文件的进  去做度更新UI
 
             }
 
-            @Override
+            @java.lang.Override
             public void onUploadError(int code, String error) {//文件上传失败返回
 
             }
         });
     }
 
+    /**
+     * 例子 获取同步结果
+     * @param url
+     */
+    public void dataSynchronous(String url){
+        uploadResult(url, new HttpCallback() {
+            @java.lang.Override
+            public void onSuccess(int code, String data) {
+                JSONObject backDatas = new JSONObject(responseString);
+                int code = backDatas.getInt("code");
+                if(code == 0){//上传成功
+                    backData = responseString;
+                    JSONObject data = backDatas.getJSONObject("data");
+                    //返回成功后相关文件信息
+                    if (uploadFileToServiceCallback != null) {
+                        uploadFileToServiceCallback.onUploadBack(code,responseString);
+                    }
+                } else if(code == 1246){//等待同步
+                    //数据同步需要时间延时已经延时5秒还在同步中，再2秒后请求同步结果
+                    timers = new Timer(2000, new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            if(timers != null){
+                                timers.stop();
+                                timers = null;
+                                dataSynchronous(url);
+                            }
+                        }
+                    });
+                    timers.start();
+                } else {//上传失败
+                    if (uploadFileToServiceCallback != null) {
+                        uploadFileToServiceCallback.onUploadError(code,"上传失败");
+                    }
+                }
+            }
+
+            @java.lang.Override
+            public void onError(int code, String data) {
+
+            }
+        });
+    }
+    //接口方法调用例子结束
 
     /**
      * 获取文件相关参数
      * @param params
      * @param url
-     * @param files
-     * @param uploadFileToServiceCallback
+     * @param httpCallback
      */
-    public void getToken(Map<String, String> params, String url, String apikey, final File files, UploadFileToServiceCallback uploadFileToServiceCallback){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // TODO Auto-generated method stub
-                try {
-                    HttpClient client = HttpClientBuilder.create().build();// 开启一个客户端 HTTP 请求
-                    HttpPost post = new HttpPost(url);//创建 HTTP POST 请求
-                    MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-                    builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);//设置浏览器兼容模式
-                    for(Map.Entry<String, String> entry:params.entrySet()){
-                        builder.addTextBody(entry.getKey(), entry.getValue());//设置请求参数
-                        if(entry.getKey().equals("buildUpdateDescription")){
-                            builder.addTextBody(entry.getKey(), entry.getValue(), ContentType.create(entry.getValue(), Charset.forName("UTF-8")));
-                        }
-                    }
-                    HttpEntity entity = builder.build();// 生成 HTTP POST 实体
-                    post.setEntity(new HttpEntityWrapper(entity));//设置请求参数
-                    HttpResponse response = client.execute(post);// 发起请求 并返回请求的响应
-                    if (response.getStatusLine().getStatusCode() == 200) {
-                        String responseString = EntityUtils.toString(response.getEntity(), "UTF-8");
-                        JSONObject backData = new JSONObject(responseString);
-                        int code = backData.getInt("code");
-                        JSONObject jsonObject = backData.getJSONObject("data");
-                        if(code == 0 && jsonObject != null){
-                            JSONObject jsonObjectparams = jsonObject.getJSONObject("params");
-                            Map<String, String> params = new HashMap<>();
-                            String key = jsonObjectparams.getString("key");
-                            params.put("key",key);
-                            params.put("signature",jsonObjectparams.getString("signature"));
-                            params.put("x-cos-security-token",jsonObjectparams.getString("x-cos-security-token"));
-                            String url = jsonObject.getString("endpoint");
-                            uploadFileToServer(params, url, files, apikey, key,uploadFileToServiceCallback);
-                        } else {
-                            String msg = jsonObjectparams.getString("message");
-                            uploadFileToServiceCallback.onUploadError(code,msg);
-                        }
-                    }
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                    uploadFileToServiceCallback.onUploadError(-1,e.getMessage());
-                }
-            }
-        }).start();
+    public void getToken(Map<String, String> params, String url, HttpCallback httpCallback){
+        sendRequest("POST",url, params ,httpCallback);
     }
 
     /**
      * 上传文件
-     * @param params 请求参数，包括请求的的方法参数method如：“upload”，
-     *               请求上传的文件类型fileTypes如：“.jpg.png.docx”
-     * @param files  要上传的文件集合
+     * @param params
+     * @param url
+     * @param files
+     * @param apikey
+     * @param buildKey
+     * @param uploadFileToServiceCallback
      */
-    public void uploadFileToServer(final Map<String, String> params, String url ,final File files, String apikey, String buildKey, UploadFileToServiceCallback uploadFileToServiceCallback) {
+    public void uploadFileToServer(final Map<String, String> params, String url ,final File files, UploadFileToServiceCallback uploadFileToServiceCallback) {
         this.uploadFileToServiceCallback = uploadFileToServiceCallback;
         // TODO Auto-generated method stub
         new Thread(new Runnable() {
@@ -150,7 +184,7 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
             public void run() {
                 // TODO Auto-generated method stub
                 try {
-                    uploadFiles(params, url, files, apikey, buildKey, uploadFileToServiceCallback);
+                    uploadFiles(params, url, files, uploadFileToServiceCallback);
                 } catch (Exception e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -162,22 +196,19 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
 
     /**
      * 上传文件实现
-     * @param params 请求参数，包括请求的的方法参数method如：“upload”，
-     *               请求上传的文件类型fileTypes如：“.jpg.png.docx”
-     * @param files  要上传的文件集合
+     * @param params
+     * @param url
+     * @param files
+     * @param uploadFileToServiceCallback
      */
-    public void uploadFiles(final Map<String, String> params, String url ,final File files, String apikey, String buildKey, UploadFileToServiceCallback uploadFileToServiceCallback,) {
+    public void uploadFiles(final Map<String, String> params, String url ,final File files, UploadFileToServiceCallback uploadFileToServiceCallback,) {
         // TODO Auto-generated method stub
         HttpClient client = HttpClientBuilder.create().build();// 开启一个客户端 HTTP 请求
         HttpPost post = new HttpPost(url);//创建 HTTP POST 请求
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);//设置浏览器兼容模式
         for(Map.Entry<String, String> entry:params.entrySet()){
-            System.out.println(entry.getKey()+"--->"+entry.getValue());
             builder.addTextBody(entry.getKey(), entry.getValue());//设置请求参数
-            if(entry.getKey().equals("buildUpdateDescription")){
-                builder.addTextBody(entry.getKey(), entry.getValue(), ContentType.create(entry.getValue(),Charset.forName("UTF-8")));
-            }
         }
         builder.addBinaryBody("file", files);
         if (this.uploadFileToServiceCallback != null)
@@ -187,20 +218,9 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
         HttpResponse response = client.execute(post);// 发起请求 并返回请求的响应
         int httpCode = response.getStatusLine().getStatusCode();
         if (httpCode == 204) {
-            uploadFileToServiceCallback.onUploadBack(FILE_UPLOAD_SUCCESSFUL,"文件上传成功等待同步数据");
-            //数据同步需要时间延时5秒请求同步结果
-            timers = new Timer(5000, new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    if(timers != null){
-                        timers.stop();
-                        timers = null;
-                        String url = "https://www.pgyer.com/apiv2/app/buildInfo?_api_key="+apikey+"&buildKey="+buildKey;
-                        uploadResult(url,uploadFileToServiceCallback);
-                    }
-                }
-            });
-            timers.start();
+            if(uploadFileToServiceCallback != null) {
+                uploadFileToServiceCallback.onUploadBack(FILE_UPLOAD_SUCCESSFUL, "文件上传成功等待同步数据");
+            }
         } else {
             if(uploadFileToServiceCallback != null){
                 uploadFileToServiceCallback.onUploadError(httpCode,"上传失败！");
@@ -213,38 +233,52 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
      * 获取上传文件后同步信息
      * @param url
      */
-    public void uploadResult(String url,UploadFileToServiceCallback uploadFileToServiceCallback){
+    public void uploadResult(String url,HttpCallback httpCallback){
+        sendRequest("GET",url, null ,httpCallback);
+    }
+
+    /**
+     * 发起http 请求
+     * @param httpModle
+     * @param url
+     * @param params
+     * @param httpCallback
+     */
+    public void sendRequest(String httpModle, String url, Map<String, String> params, HttpCallback httpCallback){
         new Thread(new Runnable() {
             @Override
             public void run() {
                 // TODO Auto-generated method stub
                 try {
                     HttpClient client = HttpClientBuilder.create().build();// 开启一个客户端 HTTP 请求
-                    HttpGet get = new HttpGet(url);//创建 HTTP POST 请求
-                    HttpResponse response = client.execute(get);// 发起请求 并返回请求的响应
+                    if(httpModle.equals("GET")){
+                        HttpGet httpClient = new HttpGet(url);//创建 HTTP POST 请求
+                    } else if(httpModle.equals("POST")){
+                        HttpPost httpClient = new HttpPost(url);//创建 HTTP POST 请求
+                        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+                        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);//设置浏览器兼容模式
+                        for(Map.Entry<String, String> entry:params.entrySet()){
+                            builder.addTextBody(entry.getKey(), entry.getValue());//设置请求参数
+                            if(entry.getKey().equals("buildUpdateDescription")){
+                                builder.addTextBody(entry.getKey(), entry.getValue(), ContentType.create(entry.getValue(), Charset.forName("UTF-8")));
+                            }
+                        }
+                        HttpEntity entity = builder.build();// 生成 HTTP POST 实体
+                        httpClient.setEntity(new HttpEntityWrapper(entity));//设置请求参数
+                    }
+                    HttpResponse response = client.execute(httpClient);// 发起请求 并返回请求的响应
                     if (response.getStatusLine().getStatusCode() == 200) {
                         String responseString = EntityUtils.toString(response.getEntity(), "UTF-8");
                         JSONObject backDatas = new JSONObject(responseString);
                         int code = backDatas.getInt("code");
-                        if(code == 0){//上传成功
-                            backData = responseString;
-                            JSONObject data = backDatas.getJSONObject("data");
-                            //返回成功后相关文件信息
-                            if (uploadFileToServiceCallback != null) {
-                                uploadFileToServiceCallback.onUploadBack(code,responseString);
-                            }
-                        } else if(code == 1246){//等待同步
-                            uploadFileToServiceCallback.onUploadBack(code,url);
-                        } else {//上传失败
-                            if (uploadFileToServiceCallback != null) {
-                                uploadFileToServiceCallback.onUploadError(code,"上传失败");
-                            }
+                        if(httpCallback != null){
+                            httpCallback.onSuccess(code,responseString);
                         }
                     }
                 } catch (Exception e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
-                    uploadFileToServiceCallback.onUploadError(-1,e.getMessage());
+                    httpCallback.onError(-1,e.getMessage());
                 }
             }
         }).start();
@@ -311,6 +345,9 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
         }
     }
 
+    /**
+     * 上传文件监听回调
+     */
     public interface UploadFileToServiceCallback {
         //上传成功 或者 同步数据接口成功返回
         void onUploadBack(int code,String msg);
@@ -322,8 +359,11 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
         void onUploadError(int code,String error);
     }
 
+    /**
+     * http 请求回调
+     */
     public interface HttpCallback{
-        void onSuccessful(int code, String data){
+        void onSuccess(int code, String data){
 
         }
         void onError(int code, String data){
