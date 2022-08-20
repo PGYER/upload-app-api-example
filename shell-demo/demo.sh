@@ -91,7 +91,7 @@ fi
 
 logTitle "检查结果"
 
-for i in {1..20}; do
+for i in {1..60}; do
     execCommand "curl -s http://www.pgyer.com/apiv2/app/buildInfo?_api_key=${api_key}\&buildKey=${key}"
     [[ "${result}" =~ \"code\":([0-9]+) ]] && code=`echo ${BASH_REMATCH[1]}`
     if [ $code -eq 0 ]; then
