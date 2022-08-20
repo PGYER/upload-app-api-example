@@ -91,7 +91,7 @@ logTitle "上传文件"
 
 execCommand "curl -s -o /dev/null -w '%{http_code}' --form-string 'key=${key}' --form-string 'signature=${signature}' --form-string 'x-cos-security-token=${x_cos_security_token}' -F 'file=@${file}' ${endpoint}"
 if [ $result -ne 204 ]; then
-    exit "Upload failed"
+    log "Upload failed"
     exit 1
 fi
 
