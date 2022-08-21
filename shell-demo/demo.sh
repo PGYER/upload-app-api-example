@@ -8,7 +8,6 @@
 # $2: 要上传的文件路径(ipa/apk)
 #
 
-# get the first argument
 readonly api_key=$1
 readonly file=$2
 
@@ -50,9 +49,7 @@ log() {
 }
 
 logTitle() {
-    log "--------------------------------"
-    log "$*"
-    log "--------------------------------"
+    log "-------------------------------- $* --------------------------------"
 }
 
 execCommand() {
@@ -64,7 +61,7 @@ execCommand() {
 # 获取上传凭证
 # ---------------------------------------------------------------
 
-logTitle "获取上传凭证"
+logTitle "获取凭证"
 
 execCommand "curl -s -F '_api_key=${api_key}' -F 'buildType=${app_type}' http://www.pgyer.com/apiv2/app/getCOSToken"
 
