@@ -6,7 +6,7 @@
 
 #### 一行命令上传
 
-请见 [shell 脚本](/tree/main/shell-demo)
+请见 [shell 脚本](https://github.com/PGYER/pgyer_api_example/tree/main/shell-demo)
 
 #### 其他
 
