@@ -11,6 +11,9 @@
 readonly api_key=$1
 readonly file=$2
 
+# Display log. 1=enable, 0=disable
+LOG_ENABLE=0
+
 printHelp() {
     echo "Usage: $0 api_key file"
     echo "Example: $0 <your_api_key> <your_apk_or_ipa_path>"
@@ -45,7 +48,7 @@ fi
 # ---------------------------------------------------------------
 
 log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    [ $LOG_ENABLE -eq 1 ]  && echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
 }
 
 logTitle() {
@@ -97,7 +100,7 @@ for i in {1..60}; do
     execCommand "curl -s http://www.pgyer.com/apiv2/app/buildInfo?_api_key=${api_key}\&buildKey=${key}"
     [[ "${result}" =~ \"code\":([0-9]+) ]] && code=`echo ${BASH_REMATCH[1]}`
     if [ $code -eq 0 ]; then
-        log $result
+        echo $result
         break
     else
         sleep 1
