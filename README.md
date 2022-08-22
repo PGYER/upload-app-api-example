@@ -9,3 +9,4 @@
  - [通过一行 shell 命令自动化上传脚本](https://github.com/PGYER/pgyer_api_example/tree/main/shell-demo)
  - [Postman API 调用模板](https://www.postman.com/shishirui/workspace/pgyer-api-example)
  - [Github Actions 工作流](https://github.com/PGYER/pgyer-upload-app-action)
+ - [Fastlane 插件](https://github.com/shishirui/fastlane-plugin-pgyer)
