@@ -10,7 +10,7 @@
   
 例如：
 
-    ./demo.sh af91xxxxxxxxxxxxxxxxxxxxxxx5d39 /app/packages/demo.ipa
+    ./pgyer-upload.sh af91xxxxxxxxxxxxxxxxxxxxxxx5d39 /app/packages/demo.ipa
     
 ## 输出
 
