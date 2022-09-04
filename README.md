@@ -10,3 +10,8 @@
  - [Postman API 调用模板](https://www.postman.com/shishirui/workspace/pgyer-api-example)
  - [Github Actions 工作流](https://github.com/PGYER/pgyer-upload-app-action)
  - [Fastlane 插件](https://github.com/shishirui/fastlane-plugin-pgyer)
+
+## 相关链接
+
+ - [蒲公英官方网站](https://www.pgyer.com)
+ - [查看蒲公英API KEY](https://www.pgyer.com/account/api)
