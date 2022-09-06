@@ -113,8 +113,8 @@ class PGYERAppUploader
 
         // step 2: upload app to bucket
         $params = $res['data']['params'];
-        $params['file'] = new CURLFile($filePath);
         $params['x-cos-meta-file-name'] = pathinfo($filePath, PATHINFO_BASENAME);
+        $params['file'] = new CURLFile($filePath);
         $this->log("upload app to bucket with params: " . json_encode($params));
         $httpcode = 0;
         $result = $this->sendRequest($res['data']['endpoint'], $params, $httpcode);

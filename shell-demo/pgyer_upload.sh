@@ -12,7 +12,7 @@ readonly api_key=$1
 readonly file=$2
 
 # Display log. 1=enable, 0=disable
-LOG_ENABLE=0
+LOG_ENABLE=1
 
 printHelp() {
     echo "Usage: $0 api_key file"
@@ -33,12 +33,10 @@ if [ ! -f "$file" ]; then
     exit 1
 fi
 
-if [[ $file =~ ipa$ ]]; then
-    app_type="ios"
-elif [[ $file =~ apk$ ]]; then
-    app_type="android"
-else
-    echo "file type not support"
+# check ext supported
+app_type=${file##*.}
+if [ "$app_type" != "ipa" ] && [ "$app_type" != "apk" ]; then
+    echo "file ext is not supported"
     printHelp
     exit 1
 fi
@@ -84,7 +82,14 @@ fi
 
 logTitle "上传文件"
 
-execCommand "curl -s -o /dev/null -w '%{http_code}' --form-string 'key=${key}' --form-string 'signature=${signature}' --form-string 'x-cos-security-token=${x_cos_security_token}' -F 'file=@${file}' ${endpoint}"
+file_name=${file##*/}
+
+execCommand "curl -s -o /dev/null -w '%{http_code}' \
+--form-string 'key=${key}' \
+--form-string 'signature=${signature}' \
+--form-string 'x-cos-security-token=${x_cos_security_token}' \
+--form-string 'x-cos-meta-file-name=${file_name}' \
+-F 'file=@${file}' ${endpoint}"
 if [ $result -ne 204 ]; then
     log "Upload failed"
     exit 1
