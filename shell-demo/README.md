@@ -1,5 +1,5 @@
 <div align="center">
-<img width="808" alt="Screen Shot 2022-09-07 at 08 44 46" src="https://user-images.githubusercontent.com/319512/188764348-5048dd79-55a9-4dd3-a34b-eac78d8502f7.png">
+<img width="808" src="https://user-images.githubusercontent.com/319512/188764348-5048dd79-55a9-4dd3-a34b-eac78d8502f7.png">
 </div>
 
 # shell 脚本使用说明
