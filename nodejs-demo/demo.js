@@ -22,7 +22,7 @@
  * 
  *  示例: 
  *  const uploader = new PGYERAppUploader('apikey');
- *  uploader.upload({ buildType: 'ios', filePath: './app.ipa' }, function (error, data) {
+ *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {
  *    // code here
  *  })
  * 
@@ -32,7 +32,7 @@
  * 
  * 示例: 
  * const uploader = new PGYERAppUploader('apikey');
- * uploader.upload({ buildType: 'ios', filePath: './app.ipa' }).then(function (data) {
+ * uploader.upload({ filePath: './app.ipa' }).then(function (data) {
  *   // code here
  * }).catch(fucntion (error) {
  *   // code here
@@ -41,7 +41,6 @@
  * uploadOptions 参数说明: (https://www.pgyer.com/doc/view/api#fastUploadApp)
  * 
  * 对象成员名                是否必选    含义
- * buildType               Y          需要上传的应用类型，ios 或 android
  * filePath                Y          App 文件的路径，可以是相对路径
  * log                     N          Bool 类型，是否打印 log
  * buildInstallType        N          应用安装方式，值为(1,2,3，默认为1 公开安装)。1：公开安装，2：密码安装，3：邀请安装
@@ -87,13 +86,12 @@
  */
 
 const PGYERAppUploader = require('./PGYERAppUploader');
-const API_KEY_PRODUCTION = '<your api key>';
+const API_KEY = '<your api key>';
 const APP_PATH = '<your app path>';
 
-const uploader = new PGYERAppUploader(API_KEY_PRODUCTION);
+const uploader = new PGYERAppUploader(API_KEY);
 
 const uploadOptions = {
-  buildType: 'ios', // ios 应用
   filePath: APP_PATH, // 上传文件路径
   log: true, // 显示 log
   buildInstallType: 2, // 安装方式:  2 为密码安装

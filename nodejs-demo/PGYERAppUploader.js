@@ -22,7 +22,7 @@
  * 
  *  示例: 
  *  const uploader = new PGYERAppUploader('apikey');
- *  uploader.upload({ buildType: 'ios', filePath: './app.ipa' }, function (error, data) {
+ *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {
  *    // code here
  *  })
  * 
@@ -32,7 +32,7 @@
  * 
  * 示例: 
  * const uploader = new PGYERAppUploader('apikey');
- * uploader.upload({ buildType: 'ios', filePath: './app.ipa' }).then(function (data) {
+ * uploader.upload({ filePath: './app.ipa' }).then(function (data) {
  *   // code here
  * }).catch(fucntion (error) {
  *   // code here
@@ -41,7 +41,6 @@
  * uploadOptions 参数说明: (https://www.pgyer.com/doc/view/api#fastUploadApp)
  * 
  * 对象成员名                是否必选    含义
- * buildType               Y          需要上传的应用类型，ios 或 android
  * filePath                Y          App 文件的路径，可以是相对路径
  * log                     N          Bool 类型，是否打印 log
  * buildInstallType        N          应用安装方式，值为(1,2,3，默认为1 公开安装)。1：公开安装，2：密码安装，3：邀请安装
@@ -95,11 +94,7 @@ module.exports = function (apiKey) {
   const LOG_TAG = '[PGYER APP UPLOADER]';
   let uploadOptions = '';
   this.upload = function (options, callback) {
-    if (
-      options &&
-      ['ios', 'android'].includes(options.buildType) &&
-      typeof options.filePath === 'string'
-    ) {
+    if (options && typeof options.filePath === 'string') {
       uploadOptions = options;
       if (typeof callback === 'function') {
         uploadApp(callback);
@@ -121,7 +116,11 @@ module.exports = function (apiKey) {
 
   function uploadApp (callback) {
     // step 1: get app upload token
-    const uploadTokenRequestData = querystring.stringify({ ...uploadOptions, _api_key: apiKey });
+    const uploadTokenRequestData = querystring.stringify({
+      ...uploadOptions,
+      _api_key: apiKey,
+      buildType: uploadOptions.filePath.split('.').pop()
+    });
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');
     const uploadTokenRequest = https.request({
@@ -181,6 +180,7 @@ module.exports = function (apiKey) {
       uploadAppRequestData.append('signature', uploadData.data.params.signature);
       uploadAppRequestData.append('x-cos-security-token', uploadData.data.params['x-cos-security-token']);
       uploadAppRequestData.append('key', uploadData.data.params.key);
+      uploadAppRequestData.append('x-cos-meta-file-name', uploadOptions.filePath.replace(/^.*[\\\/]/, ''));
       uploadAppRequestData.append('file', fs.createReadStream(uploadOptions.filePath));
 
       uploadAppRequestData.submit(uploadData.data.endpoint, function (error, response) {
