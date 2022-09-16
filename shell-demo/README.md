@@ -16,7 +16,25 @@
 
 ## 显示帮助
 
-    ./pgyer-upload.sh -h
+    $ ./pgyer-upload.sh -h
+    
+    Usage: ./pgyer_upload.sh -k <api_key> [OPTION]... file
+    Upload iOS or Android app package file to PGYER.
+    Example: ./pgyer_upload.sh -k xxxxxxxxxxxxxxx /data/app.ipa
+
+    Description:
+      -k api_key                       (required) api key from PGYER
+      -t buildInstallType              build install type, 1=public, 2=password, 3=invite
+      -p buildPassword                 build password, required if buildInstallType=2
+      -d buildUpdateDescription        build update description
+      -e buildInstallDate              build install date, 1=buildInstallStartDate~buildInstallEndDate, 2=forever
+      -s buildInstallStartDate         build install start date, format: yyyy-MM-dd
+      -e buildInstallEndDate           build install end date, format: yyyy-MM-dd
+      -c buildChannelShortcut          build channel shortcut
+      -h help                          show this help
+
+    Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>
+    Project home page: <https://github.com/PGYER/pgyer_api_example>
 
 ## 日志
 
