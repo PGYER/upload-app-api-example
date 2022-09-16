@@ -12,11 +12,15 @@
 
 命令格式：
 
-    ./pgyer-upload.sh <your-pgyer-api-key> <your-ipa-or-apk-file-path>
+    ./pgyer-upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file-path>
 
 ## 输出
 
 上传成功后，输出上传后的结果，类型为 JSON 格式的字符
+
+## 显示帮助
+
+    ./pgyer-upload.sh -h
 
 ## 日志
 
@@ -29,6 +33,6 @@
 
 命令如下（注意您的安装目录可能有所不同，请相应替换）：
 
-    D:\> & 'C:\Program Files\Git\bin\bash.exe' .\pgyer_upload.sh <your-pgyer-api-key> <your-ipa-or-apk-file>
+    D:\> & 'C:\Program Files\Git\bin\bash.exe' .\pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file>
 
 完成后，就会直接返回 App 的上传结果
