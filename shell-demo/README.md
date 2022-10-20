@@ -50,3 +50,9 @@
     D:\> & 'C:\Program Files\Git\bin\bash.exe' .\pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file>
 
 完成后，就会直接返回 App 的上传结果
+
+## 其他
+
+[显示上传进度](https://github.com/PGYER/pgyer_api_example/issues/19)
+
+
