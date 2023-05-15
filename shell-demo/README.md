@@ -8,7 +8,7 @@
 
 命令格式：
 
-    ./pgyer-upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file-path>
+    ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file-path>
 
 ## 输出
 
@@ -16,7 +16,7 @@
 
 ## 显示帮助
 
-    $ ./pgyer-upload.sh -h
+    $ ./pgyer_upload.sh -h
     
     Usage: ./pgyer_upload.sh -k <api_key> [OPTION]... file
     Upload iOS or Android app package file to PGYER.
