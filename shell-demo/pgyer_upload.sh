@@ -92,7 +92,7 @@ command="curl -s"
 [ -n "$buildType" ]              && command="${command} --form-string 'buildType=${buildType}'";
 [ -n "$buildInstallType" ]       && command="${command} --form-string 'buildInstallType=${buildInstallType}'";
 [ -n "$buildPassword" ]          && command="${command} --form-string 'buildPassword=${buildPassword}'";
-[ -n "$buildUpdateDescription" ] && command="${command} --form-string 'buildUpdateDescription=${buildUpdateDescription}'";
+[ -n "$buildUpdateDescription" ] && command="${command} --form-string $'buildUpdateDescription=${buildUpdateDescription}'";
 [ -n "$buildInstallDate" ]       && command="${command} --form-string 'buildInstallDate=${buildInstallDate}'";
 [ -n "$buildInstallStartDate" ]  && command="${command} --form-string 'buildInstallStartDate=${buildInstallStartDate}'";
 [ -n "$buildInstallEndDate" ]    && command="${command} --form-string 'buildInstallEndDate=${buildInstallEndDate}'";
