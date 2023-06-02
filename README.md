@@ -1,6 +1,6 @@
 # 蒲公英 API 上传 App 代码示例
 
-演示如何将 iOS 或 Android 安装包文件通过**蒲公英新版 API** 上传到蒲公英平台。具体文档请见：https://www.pgyer.com/doc/view/api#fastUploadApp
+演示如何将 iOS 或 Android 安装包文件通过蒲公英 API 上传到蒲公英平台。具体文档请见：https://www.pgyer.com/doc/view/api#fastUploadApp
 
 **注意：本项目采用蒲公英新版上传API，蒲公英旧版API（如v1、v2）中的上传接口已经废弃**
 
