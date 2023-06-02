@@ -2,7 +2,7 @@
 
 演示如何将 iOS 或 Android 安装包文件通过蒲公英 API 上传到蒲公英平台。具体文档请见：https://www.pgyer.com/doc/view/api#fastUploadApp
 
-**注意：本项目采用蒲公英新版上传API，蒲公英旧版API（如v1、v2）中的上传接口已经废弃**
+**注意：本项目采用蒲公英新版上传 API，蒲公英旧版API（如 v1、v2）中的上传接口已经废弃**
 
 ## 其他用法
 
@@ -14,4 +14,4 @@
 ## 相关链接
 
  - [蒲公英官方网站](https://www.pgyer.com)
- - [查看蒲公英API KEY](https://www.pgyer.com/account/api)
+ - [查看蒲公英 API KEY](https://www.pgyer.com/account/api)
