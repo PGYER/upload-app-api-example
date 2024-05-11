@@ -2,7 +2,7 @@
 
 ## Introduction
 
-[PGYER App Testing Distribution Platform](https://www.pgyer.com) is a platform for hosting beta testing and distributing installation packages for apps, supporting iOS app packages (`.ipa` files) and Android app packages (`.apk` files).
+[PGYER](https://www.pgyer.com) is a platform for hosting beta testing and distributing installation packages for apps, supporting iOS app packages (`.ipa` files) and Android app packages (`.apk` files).
 
 This project demonstrates how to use the PGYER API to upload iOS or Android installation package files to the PGYER platform and retrieve the upload result.
 
