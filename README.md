@@ -17,7 +17,13 @@
 
 ## 用法
 
-具体可见项目中各个语言对应的文件夹中的示例代码。
+具体可见项目中各个语言对应的文件夹中的示例代码：
+
+- [Java](/java-demo)
+- [Node.js](/nodejs-demo)
+- [PHP](/php-demo)
+- [Python](/python-demo)
+- [Shell](/shell-demo)
 
 ## 资源
 
