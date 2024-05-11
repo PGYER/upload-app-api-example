@@ -12,7 +12,13 @@ Note: This project uses the latest PGYER API, and the old PGYER API versions (e.
 
 ## Usage
 
-See the example code in the folders for each language in the project.
+See the example code in the folders for each language in the project:
+
+- [Java](/java-demo)
+- [Node.js](/nodejs-demo)
+- [PHP](/php-demo)
+- [Python](/python-demo)
+- [Shell](/shell-demo)
 
 ## Resources
 
