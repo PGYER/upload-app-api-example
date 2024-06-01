@@ -19,6 +19,7 @@ See the example code in the folders for each language in the project:
 - [PHP](/php-demo)
 - [Python](/python-demo)
 - [Shell](/shell-demo)
+- [c#](/csharp-demo)
 
 ## Resources
 
