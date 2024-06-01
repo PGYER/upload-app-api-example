@@ -24,6 +24,7 @@
 - [PHP](/php-demo)
 - [Python](/python-demo)
 - [Shell](/shell-demo)
+- [c#](/csharp-demo)
 
 ## 资源
 
