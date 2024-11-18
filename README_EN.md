@@ -8,18 +8,19 @@ This project demonstrates how to use the PGYER API to upload iOS or Android inst
 
 Currently, we support code in **Java**, **Node.js**, **PHP**, **Python**, **Shell**, and welcome developers to contribute code in other languages.
 
-Note: This project uses the latest PGYER API, and the old PGYER API versions (e.g., v1, v2) has been deprecated.
+Note: This project uses the new version of the upload API, the upload speed is faster! The old version of API (e.g. v1, v2) is still available, but the speed is not as fast as the new version.
+
 
 ## Usage
 
 See the example code in the folders for each language in the project:
 
+- [C#](/csharp-demo)
 - [Java](/java-demo)
 - [Node.js](/nodejs-demo)
 - [PHP](/php-demo)
 - [Python](/python-demo)
 - [Shell](/shell-demo)
-- [c#](/csharp-demo)
 
 ## Resources
 
