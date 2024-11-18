@@ -13,18 +13,18 @@
 
 目前，我们已经支持了 **Java**, **Node.js**, **PHP**, **Python**, **Shell** 代码，也欢迎开发者贡献其他语言的代码。
 
-注意：本项目采用蒲公英新版上传 API，蒲公英旧版API（如 v1、v2）中的上传接口已经废弃
+注意：本项目采用蒲公英新版上传 API，新版 API 上传的速度更快！蒲公英旧版API（如 v1、v2）中的上传接口依然可用，但是速度没有新版快。
 
 ## 用法
 
 具体可见项目中各个语言对应的文件夹中的示例代码：
 
+- [Shell](/shell-demo)
 - [Java](/java-demo)
 - [Node.js](/nodejs-demo)
 - [PHP](/php-demo)
 - [Python](/python-demo)
-- [Shell](/shell-demo)
-- [c#](/csharp-demo)
+- [C#](/csharp-demo)
 
 ## 资源
 
