@@ -31,6 +31,8 @@
       -s buildInstallStartDate         build install start date, format: yyyy-MM-dd
       -e buildInstallEndDate           build install end date, format: yyyy-MM-dd
       -c buildChannelShortcut          build channel shortcut
+      -q                               quiet mode, disable progress bar
+      -j                               output full JSON response after completion
       -h help                          show this help
 
     Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>
