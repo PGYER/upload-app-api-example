@@ -6,6 +6,8 @@
 
 # Display log. 1=enable, 0=disable
 LOG_ENABLE=1
+# Display progress bar. 1=enable, 0=disable
+PROGRESS_ENABLE=1
 
 printHelp() {
     echo "Usage: $0 -k <api_key> [OPTION]... file"
@@ -21,6 +23,7 @@ printHelp() {
     echo "  -s buildInstallStartDate         build install start date, format: yyyy-MM-dd"
     echo "  -e buildInstallEndDate           build install end date, format: yyyy-MM-dd"
     echo "  -c buildChannelShortcut          build channel shortcut"
+    echo "  -q                               quiet mode, disable progress bar"
     echo "  -h help                          show this help"
     echo ""
     echo "Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>" 
@@ -28,7 +31,7 @@ printHelp() {
     exit 1
 }
 
-while getopts 'k:t:p:d:s:e:c:h' OPT; do
+while getopts 'k:t:p:d:s:e:c:qh' OPT; do
     case $OPT in
         k) api_key="$OPTARG";;
         t) buildInstallType="$OPTARG";;
@@ -38,6 +41,7 @@ while getopts 'k:t:p:d:s:e:c:h' OPT; do
         s) buildInstallStartDate="$OPTARG";;
         e) buildInstallEndDate="$OPTARG";;
         c) buildChannelShortcut="$OPTARG";;
+        q) PROGRESS_ENABLE=0;;
         ?) printHelp;;
     esac
 done
@@ -118,7 +122,11 @@ logTitle "上传文件"
 
 file_name=${file##*/}
 
-execCommand "curl -s -o /dev/null -w '%{http_code}' \
+progress_option="--progress-bar"
+[ $PROGRESS_ENABLE -eq 0 ] && progress_option="-s"
+
+execCommand "curl  -o /dev/null -w '%{http_code}' \
+    ${progress_option} \
 --form-string 'key=${key}' \
 --form-string 'signature=${signature}' \
 --form-string 'x-cos-security-token=${x_cos_security_token}' \
