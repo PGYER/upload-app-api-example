@@ -6,7 +6,11 @@
 
 ## 使用说明
 
-命令格式：
+为脚本赋予执行权限：
+
+    chmod +x ./pgyer_upload.sh
+
+执行命令：
 
     ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file-path>
 
