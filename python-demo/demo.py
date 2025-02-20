@@ -20,11 +20,10 @@ if __name__ == "__main__":
 
   app_path = '<your app path>' # App包路径
   pgyer_api_key = '<your api key>' # API KEY
-  pgyer_password = '<your app install password>' # 安装密码
 
   PgyerUtil.upload_to_pgyer(
     path = app_path, 
-    api_key = pgyer_api_key, 
-    password=pgyer_password, 
+    api_key = pgyer_api_key,
+    install_type = 1,
     callback=upload_complete_callback
   )
