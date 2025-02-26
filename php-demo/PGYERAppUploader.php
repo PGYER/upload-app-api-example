@@ -102,7 +102,7 @@ class PGYERAppUploader
 
         $this->log("get upload token with params: " . json_encode($params));
 
-        $res = $this->sendRequest("http://www.pgyer.com/apiv2/app/getCOSToken", $params);
+        $res = $this->sendRequest("http://api.pgyer.com/apiv2/app/getCOSToken", $params);
         $this->log($res);
         $res = json_decode($res, true);
 
@@ -127,7 +127,7 @@ class PGYERAppUploader
         }
 
         // step 3: get uploaded app data
-        $url = "http://www.pgyer.com/apiv2/app/buildInfo?_api_key=" . $this->apikey . "&buildKey=$key";
+        $url = "http://api.pgyer.com/apiv2/app/buildInfo?_api_key=" . $this->apikey . "&buildKey=$key";
         $this->log("get build info from: " . $url);
         for ($i = 0; $i < 60; $i++) {
             $resp = $this->sendRequest($url);

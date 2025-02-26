@@ -124,7 +124,7 @@ module.exports = function (apiKey) {
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');
     const uploadTokenRequest = https.request({
-      hostname: 'www.pgyer.com',
+      hostname: 'api.pgyer.com',
       path: '/apiv2/app/getCOSToken',
       method: 'POST',
       headers: {
@@ -199,7 +199,7 @@ module.exports = function (apiKey) {
     // step 3: get uploaded app data
     function getUploadResult (uploadData) {
       const uploadResultRequest = https.request({
-        hostname: 'www.pgyer.com',
+        hostname: 'api.pgyer.com',
         path: '/apiv2/app/buildInfo?_api_key=' + apiKey + '&buildKey=' + uploadData.data.key,
         method: 'POST',
         headers: {

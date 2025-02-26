@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------
-readonly API_BASE_URL="http://www.pgyer.com/apiv2"
+readonly API_BASE_URL="http://api.pgyer.com/apiv2"
 readonly SUPPORTED_TYPES=("ipa" "apk")
 
 # ---------------------------------------------------------------

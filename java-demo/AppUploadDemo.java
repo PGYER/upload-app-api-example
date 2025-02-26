@@ -20,7 +20,7 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
     public static final String API_KEY_DEV = "";//测试环境apikey
     public static final String API_KEY_PRODUCTION = "";//线上环境apikey
     public static final String APP_PATH = "";//文件地址
-    public static final String  GET_TOKEN_URL = "https://www.pgyer.com/apiv2/app/getCOSToken";
+    public static final String  GET_TOKEN_URL = "https://api.pgyer.com/apiv2/app/getCOSToken";
     public static final int FILE_UPLOAD_SUCCESSFUL = 1001;
 
     private UploadFileToServiceCallback uploadFileToServiceCallback;
@@ -86,7 +86,7 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
                             if(timers != null){
                                 timers.stop();
                                 timers = null;
-                                String url = "https://www.pgyer.com/apiv2/app/buildInfo?_api_key="+apikey+"&buildKey="+buildKey;
+                                String url = "https://api.pgyer.com/apiv2/app/buildInfo?_api_key="+apikey+"&buildKey="+buildKey;
                                 uploadResult(url,uploadFileToServiceCallback);
                             }
                         }
