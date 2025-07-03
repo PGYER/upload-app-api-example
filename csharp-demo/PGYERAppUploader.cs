@@ -8,7 +8,7 @@ class PGYERAppUploader
     private readonly string _apikey;
     private readonly string _baseurl;
     private bool _debug;
-    private readonly string[] _suffixs = [".ipa", ".apk"];
+    private readonly string[] _suffixs = [".ipa", ".apk", ".hap"];
     public PGYERAppUploader(string apikey, string baseurl = "https://api.pgyer.com")
     {
         this._apikey = apikey;
@@ -34,13 +34,30 @@ class PGYERAppUploader
         if (!file.Exists)
             throw new Exception($"no such {option.FilePath} file.");
         if (!this._suffixs.Contains(file.Extension.ToLower()))
-            throw new Exception("invalid file extension, only support .ipa or .apk extension");
+            throw new Exception("invalid file extension, only support .ipa, .apk or .hap extension");
         // step 1
         // get costoken
+        // 根据文件扩展名确定buildType
+        string buildType;
+        switch (file.Extension.ToLower())
+        {
+            case ".ipa":
+                buildType = "ios";
+                break;
+            case ".apk":
+                buildType = "android";
+                break;
+            case ".hap":
+                buildType = "harmony";
+                break;
+            default:
+                throw new Exception($"Unsupported file type: {file.Extension}. Supported types: .ipa, .apk, .hap");
+        }
+        
         CosTokenRequest cosTokenRequest = new CosTokenRequest
         {
             ApiKey = this._apikey,
-            BuildType = file.Extension.TrimStart('.'),
+            BuildType = buildType,
             Oversea = option.Oversea ?? "",
             BuildInstallType = option.BuildInstallType ?? "",
             BuildPassword = option.BuildPassword ?? "",

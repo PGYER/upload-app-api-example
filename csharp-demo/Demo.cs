@@ -72,6 +72,7 @@ using System.Text.Json;
 * 此 Demo 用演示如何使用 PGYER API 上传 App
 * 详细文档参照 https://www.pgyer.com/doc/view/api#fastUploadApp
 * 适用于 c# 项目
+* 支持上传 iOS (.ipa)、Android (.apk) 和 HarmonyOS (.hap) 应用
 */
 class Demo
 {
@@ -83,7 +84,7 @@ class Demo
         uploader.WithDebug();
         UploadOption option = new UploadOption
         {
-            FilePath = "./your-app.apk",
+            FilePath = "./your-app.apk",  // 支持 .ipa (iOS)、.apk (Android)、.hap (HarmonyOS)
         };
         Response<BuildInfoResponse> response = uploader.Upload(option);
         if (response != null)

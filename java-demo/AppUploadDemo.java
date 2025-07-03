@@ -41,8 +41,20 @@ public class AppUploadDemo implements AppUploadDemo.ProgressHttpEntityWrapper.Pr
         }
         params.put("buildUpdateDescription", "");//版本更新日志
 
-        File uploadFile = new File(APP_PATH);//apk文件路径
-        params.put("buildType", "android");
+        File uploadFile = new File(APP_PATH);//应用文件路径
+        // 根据文件扩展名确定buildType
+        String fileName = uploadFile.getName().toLowerCase();
+        String buildType;
+        if (fileName.endsWith(".ipa")) {
+            buildType = "ios";
+        } else if (fileName.endsWith(".apk")) {
+            buildType = "android";
+        } else if (fileName.endsWith(".hap")) {
+            buildType = "harmony";
+        } else {
+            throw new IllegalArgumentException("Unsupported file type. Supported types: ipa, apk, hap");
+        }
+        params.put("buildType", buildType);
         String url = GET_TOKEN_URL;//
         getToken(params, url, new HttpCallback() {
             @java.lang.Override

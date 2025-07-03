@@ -2,9 +2,9 @@
 
 ## Introduction
 
-[PGYER](https://www.pgyer.com) is a platform for hosting and distributing beta mobile apps, supporting iOS app packages (`.ipa` files) and Android app packages (`.apk` files).
+[PGYER](https://www.pgyer.com) is a platform for hosting and distributing beta mobile apps, supporting iOS app packages (`.ipa` files), Android app packages (`.apk` files), and HarmonyOS app packages (`.hap` files).
 
-This project demonstrates how to use the PGYER API to upload iOS or Android installation package files to the PGYER platform and retrieve the upload result.
+This project demonstrates how to use the PGYER API to upload iOS, Android, or HarmonyOS installation package files to the PGYER platform and retrieve the upload result.
 
 Currently, we support code in **Java**, **Node.js**, **PHP**, **Python**, **Shell**, and welcome developers to contribute code in other languages.
 

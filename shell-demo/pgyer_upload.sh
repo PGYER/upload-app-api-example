@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Shell script to upload local app files to PGYER via API
+# Shell script to upload iOS, Android and HarmonyOS app files to PGYER via API
 # https://www.pgyer.com/doc/view/api#fastUploadApp
 #
 
@@ -39,8 +39,11 @@ execCommand() {
 printHelp() {
     cat << EOF
 Usage: $0 -k <api_key> [OPTION]... file
-Upload iOS or Android app package file to PGYER.
-Example: $0 -k xxxxxxxxxxxxxxx /data/app.ipa
+Upload iOS, Android or HarmonyOS app package file to PGYER.
+Examples: 
+  $0 -k xxxxxxxxxxxxxxx /data/app.ipa     # Upload iOS app
+  $0 -k xxxxxxxxxxxxxxx /data/app.apk     # Upload Android app  
+  $0 -k xxxxxxxxxxxxxxx /data/app.hap     # Upload HarmonyOS app
 
 Description:
   -k api_key                       (required) api key from PGYER

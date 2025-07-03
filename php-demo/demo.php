@@ -3,6 +3,7 @@
 * 此 Demo 用演示如何使用 PGYER API 上传 App
 * 详细文档参照 https://www.pgyer.com/doc/view/api#fastUploadApp
 * 适用于 php 项目
+* 支持上传 iOS (.ipa)、Android (.apk) 和 HarmonyOS (.hap) 应用
 */
 
 /*
@@ -18,7 +19,9 @@
 * 
 *  示例: 
 *  $uploader = new PGYERAppUploader('apikey');
-*  $uploader->upload(['buildType' => 'ios', 'filePath' => './app.ipa']);
+*  $uploader->upload(['filePath' => './app.ipa']);  // iOS应用
+*  $uploader->upload(['filePath' => './app.apk']);  // Android应用
+*  $uploader->upload(['filePath' => './app.hap']);  // HarmonyOS应用
 
 * 
 * uploadOptions 参数说明: (https://www.pgyer.com/doc/view/api#fastUploadApp)
@@ -72,9 +75,11 @@ require_once 'PGYERAppUploader.php';
 try {
     $uploader = new PGYERAppUploader('<your api key>');
     $uploader->log = true;
+    
+    // 支持的文件类型：.ipa (iOS)、.apk (Android)、.hap (HarmonyOS)
     $info = $uploader->upload([
-        'filePath' => '<your app file path>',
-        'buildInstallType' => 2,
+        'filePath' => '<your app file path>',  // 例如: './app.ipa' 或 './app.apk' 或 './app.hap'
+        'buildInstallType' => 2,  // 1:公开 2:密码安装 3:邀请安装
         'buildPassword' => '123456',
         'buildUpdateDescription' => 'update by api',
     ]);

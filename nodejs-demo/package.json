@@ -1,5 +1,24 @@
 {
+  "name": "pgyer-app-uploader",
+  "version": "1.0.0",
+  "description": "PGYER App Uploader for Node.js - Support iOS (.ipa), Android (.apk) and HarmonyOS (.hap) apps",
+  "main": "PGYERAppUploader.js",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
     "form-data": "^4.0.2"
-  }
+  },
+  "keywords": [
+    "pgyer",
+    "app-upload",
+    "ios",
+    "android",
+    "harmonyos",
+    "ipa",
+    "apk",
+    "hap"
+  ],
+  "author": "PGYER",
+  "license": "MIT"
 }

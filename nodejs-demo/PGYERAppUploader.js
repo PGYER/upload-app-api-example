@@ -3,6 +3,7 @@
  * 详细文档参照 https://www.pgyer.com/doc/view/api#fastUploadApp
  * 适用于 nodejs 项目
  * 本代码需要 npm 包 form-data 支持 运行 npm install --save form-data 即可
+ * 支持上传 iOS (.ipa)、Android (.apk) 和 HarmonyOS (.hap) 应用
  */
 
 /*
@@ -20,19 +21,35 @@
  * 
  *  uploader.upload(uploadOptions: Object, callbackFn(error: Error, result: Object): any): void
  * 
- *  示例: 
+  *  示例: 
  *  const uploader = new PGYERAppUploader('apikey');
- *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {
+ *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {  // iOS应用
  *    // code here
  *  })
- * 
+ *  uploader.upload({ filePath: './app.apk' }, function (error, data) {  // Android应用
+ *    // code here
+ *  })
+ *  uploader.upload({ filePath: './app.hap' }, function (error, data) {  // HarmonyOS应用
+ *    // code here
+ *  })
+ *
  * 2. 使用 promise 方式调用
- * 
+ *
  * uploader.upload(uploadOptions: Object): Promise
- * 
+ *
  * 示例: 
  * const uploader = new PGYERAppUploader('apikey');
- * uploader.upload({ filePath: './app.ipa' }).then(function (data) {
+ * uploader.upload({ filePath: './app.ipa' }).then(function (data) {  // iOS应用
+ *   // code here
+ * }).catch(fucntion (error) {
+ *   // code here
+ * })
+ * uploader.upload({ filePath: './app.apk' }).then(function (data) {  // Android应用
+ *   // code here
+ * }).catch(fucntion (error) {
+ *   // code here
+ * })
+ * uploader.upload({ filePath: './app.hap' }).then(function (data) {  // HarmonyOS应用
  *   // code here
  * }).catch(fucntion (error) {
  *   // code here
@@ -116,10 +133,29 @@ module.exports = function (apiKey) {
 
   function uploadApp (callback) {
     // step 1: get app upload token
+    const fileExt = uploadOptions.filePath.split('.').pop().toLowerCase();
+    let buildType;
+    
+    // 根据文件扩展名确定buildType
+    switch (fileExt) {
+      case 'ipa':
+        buildType = 'ios';
+        break;
+      case 'apk':
+        buildType = 'android';
+        break;
+      case 'hap':
+        buildType = 'harmony';
+        break;
+      default:
+        callback(new Error(LOG_TAG + ' Unsupported file type: ' + fileExt + '. Supported types: ipa, apk, hap'), null);
+        return;
+    }
+    
     const uploadTokenRequestData = querystring.stringify({
       ...uploadOptions,
       _api_key: apiKey,
-      buildType: uploadOptions.filePath.split('.').pop()
+      buildType: buildType
     });
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');

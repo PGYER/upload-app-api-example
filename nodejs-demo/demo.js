@@ -3,6 +3,7 @@
  * 详细文档参照 https://www.pgyer.com/doc/view/api#fastUploadApp
  * 适用于 nodejs 项目
  * 本代码需要 npm 包 form-data 支持 运行 npm install --save form-data 即可
+ * 支持上传 iOS (.ipa)、Android (.apk) 和 HarmonyOS (.hap) 应用
  */
 
 /*
@@ -20,19 +21,35 @@
  * 
  *  uploader.upload(uploadOptions: Object, callbackFn(error: Error, result: Object): any): void
  * 
- *  示例: 
+  *  示例: 
  *  const uploader = new PGYERAppUploader('apikey');
- *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {
+ *  uploader.upload({ filePath: './app.ipa' }, function (error, data) {  // iOS应用
  *    // code here
  *  })
- * 
+ *  uploader.upload({ filePath: './app.apk' }, function (error, data) {  // Android应用
+ *    // code here
+ *  })
+ *  uploader.upload({ filePath: './app.hap' }, function (error, data) {  // HarmonyOS应用
+ *    // code here
+ *  })
+ *
  * 2. 使用 promise 方式调用
- * 
+ *
  * uploader.upload(uploadOptions: Object): Promise
- * 
+ *
  * 示例: 
  * const uploader = new PGYERAppUploader('apikey');
- * uploader.upload({ filePath: './app.ipa' }).then(function (data) {
+ * uploader.upload({ filePath: './app.ipa' }).then(function (data) {  // iOS应用
+ *   // code here
+ * }).catch(fucntion (error) {
+ *   // code here
+ * })
+ * uploader.upload({ filePath: './app.apk' }).then(function (data) {  // Android应用
+ *   // code here
+ * }).catch(fucntion (error) {
+ *   // code here
+ * })
+ * uploader.upload({ filePath: './app.hap' }).then(function (data) {  // HarmonyOS应用
  *   // code here
  * }).catch(fucntion (error) {
  *   // code here
@@ -86,22 +103,22 @@
  */
 
 const PGYERAppUploader = require('./PGYERAppUploader');
-const API_KEY = '<your api key>';
-const APP_PATH = '<your app path>';
+const API_KEY = '';
+const APP_PATH = '';
 
 const uploader = new PGYERAppUploader(API_KEY);
 
 const uploadOptions = {
   filePath: APP_PATH, // 上传文件路径
   log: true, // 显示 log
-  buildInstallType: 2, // 安装方式:  2 为密码安装
+  buildInstallType: 1, // 安装方式:  2 为密码安装
   buildPassword: '123456' // 安装密码
 }
 
 // 调用方式 1: 使用回调函数调用
-uploader.upload(uploadOptions, function (error, result) {
-  error ? console.error(error): console.log(result);
-});
+// uploader.upload(uploadOptions, function (error, result) {
+  // error ? console.error(error): console.log(result);
+// });
 
 // 调用方式 2: 使用 Promise 调用
 uploader.upload(uploadOptions).then(console.log).catch(console.error);

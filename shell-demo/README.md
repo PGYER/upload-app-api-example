@@ -12,7 +12,7 @@
 
 执行命令：
 
-    ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file-path>
+    ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
 
 ## 输出
 
@@ -23,7 +23,7 @@
     $ ./pgyer_upload.sh -h
     
     Usage: ./pgyer_upload.sh -k <api_key> [OPTION]... file
-    Upload iOS or Android app package file to PGYER.
+    Upload iOS, Android or HarmonyOS app package file to PGYER.
     Example: ./pgyer_upload.sh -k xxxxxxxxxxxxxxx /data/app.ipa
 
     Description:
@@ -53,7 +53,7 @@
 
 命令如下（注意您的安装目录可能有所不同，请相应替换）：
 
-    D:\> & 'C:\Program Files\Git\bin\bash.exe' .\pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-file>
+    D:\> & 'C:\Program Files\Git\bin\bash.exe' .\pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file>
 
 完成后，就会直接返回 App 的上传结果
 

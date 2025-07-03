@@ -3,6 +3,7 @@
 * 此 Demo 用演示如何使用 PGYER API 上传 App
 * 详细文档参照 https://www.pgyer.com/doc/view/api#fastUploadApp
 * 适用于 php 项目
+* 支持上传 iOS (.ipa)、Android (.apk) 和 HarmonyOS (.hap) 应用
 */
 
 /*
@@ -18,7 +19,9 @@
 * 
 *  示例: 
 *  $uploader = new PGYERAppUploader('apikey');
-*  $uploader->upload(['buildType' => 'ios', 'filePath' => './app.ipa']);
+*  $uploader->upload(['filePath' => './app.ipa']);  // iOS应用
+*  $uploader->upload(['filePath' => './app.apk']);  // Android应用
+*  $uploader->upload(['filePath' => './app.hap']);  // HarmonyOS应用
 
 * 
 * uploadOptions 参数说明: (https://www.pgyer.com/doc/view/api#fastUploadApp)
@@ -84,13 +87,29 @@ class PGYERAppUploader
 
         // step 1: get app upload token
         $ext = pathinfo($filePath, PATHINFO_EXTENSION);
-        if (!in_array($ext, ['ipa', 'apk'])) {
-            throw new Exception('Invalid file type');
+        if (!in_array($ext, ['ipa', 'apk', 'hap'])) {
+            throw new Exception('Invalid file type. Supported types: ipa, apk, hap');
+        }
+
+        // 根据文件扩展名确定buildType
+        $buildType = '';
+        switch (strtolower($ext)) {
+            case 'ipa':
+                $buildType = 'ios';
+                break;
+            case 'apk':
+                $buildType = 'android';
+                break;
+            case 'hap':
+                $buildType = 'harmony';
+                break;
+            default:
+                throw new Exception('Unsupported file type: ' . $ext);
         }
 
         $params = [
             "_api_key" => $this->apikey,
-            "buildType" => strtolower($ext)
+            "buildType" => $buildType
         ];
 
         $otherParams = ["buildInstallType", "buildPassword", "buildUpdateDescription", "buildInstallDate", "buildInstallStartDate", "buildInstallEndDate", "buildChannelShortcut"];
