@@ -7,9 +7,9 @@
 
 ## 说明
 
-[蒲公英 App 内测分发平台](https://www.pgyer.com) 是一个为 App 安装包提供内测托管、下载分发的平台，支持 iOS App 安装包(`.ipa`文件) 和 Andoid App 安装包(`.apk`文件)。
+[蒲公英 App 内测分发平台](https://www.pgyer.com) 是一个为 App 安装包提供内测托管、下载分发的平台，支持 iOS App 安装包(`.ipa`文件)、Andoid App 安装包(`.apk`文件)、HarmonyOS App 安装包(`.hap`文件)。
 
-本项目演示了如何将 iOS 或 Android 安装包文件通过蒲公英 API 上传到蒲公英平台，并获取上传结果。
+本项目演示了如何将 iOS/Android/HarmonyOS 安装包文件通过蒲公英 API 上传到蒲公英平台，并获取上传结果。
 
 目前，我们已经支持了 **Java**, **Node.js**, **PHP**, **Python**, **Shell** 代码，也欢迎开发者贡献其他语言的代码。
 
