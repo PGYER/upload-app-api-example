@@ -13,7 +13,7 @@ if __name__ == "__main__":
       _url = _data['buildShortcutUrl'].strip() # 去除首尾空格
       _appVer = _data['buildVersion']
       _buildVer = _data['buildBuildVersion']
-      print('链接: https://www.pgyer.com/%s'%_url)
+      print('链接: https://www.xcxwo.com/%s'%_url)
       print('版本: %s (build %s)'%(_appVer, _buildVer))
     else:
       print('上传失败')

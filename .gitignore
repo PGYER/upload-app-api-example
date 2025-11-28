@@ -1,2 +1,6 @@
 .DS_Store
 test*
+
+py3/
+__pycache__
+**/__init__*

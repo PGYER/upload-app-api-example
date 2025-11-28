@@ -52,7 +52,7 @@ def _getCOSToken(
     'buildUpdateDescription': update_description, # (选填) 版本更新描述，请传空字符串，或不传。
   }
   try:
-    r = requests.post('https://api.pgyer.com/apiv2/app/getCOSToken', data=payload, headers=headers)
+    r = requests.post('https://api.xcxwo.com/apiv2/app/getCOSToken', data=payload, headers=headers)
     if r.status_code == requests.codes.ok:
       result = r.json()
       # print(result)
@@ -125,7 +125,7 @@ def _getBuildInfo(api_key, json, callback=None):
     检测应用是否发布完成，并获取发布应用的信息
     """
     time.sleep(3) # 先等个几秒，上传完直接获取肯定app是还在处理中~
-    response = requests.get('https://api.pgyer.com/apiv2/app/buildInfo', params={
+    response = requests.get('https://api.xcxwo.com/apiv2/app/buildInfo', params={
       '_api_key': api_key,
       'buildKey': json['data']['params']['key'],
     })

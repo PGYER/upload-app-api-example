@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------
-readonly API_BASE_URL="http://api.pgyer.com/apiv2"
+readonly API_BASE_URL="http://api.xcxwo.com/apiv2"
 readonly SUPPORTED_TYPES=("ipa" "apk" "hap")
 
 # ---------------------------------------------------------------
@@ -178,7 +178,7 @@ checkResult() {
             if [ $url_printed -eq 0 ]; then
                 [[ "${result}" =~ \"buildShortcutUrl\":\"([^\"]+)\" ]] && shortcut_url=`echo ${BASH_REMATCH[1]}`
                 if [ -n "$shortcut_url" ]; then
-                    log "Upload successful! App URL: https://www.pgyer.com/${shortcut_url}"
+                    log "Upload successful! App URL: https://www.xcxwo.com/${shortcut_url}"
                 fi
                 url_printed=1
             fi

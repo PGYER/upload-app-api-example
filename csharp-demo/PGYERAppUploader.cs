@@ -9,7 +9,7 @@ class PGYERAppUploader
     private readonly string _baseurl;
     private bool _debug;
     private readonly string[] _suffixs = [".ipa", ".apk", ".hap"];
-    public PGYERAppUploader(string apikey, string baseurl = "https://api.pgyer.com")
+    public PGYERAppUploader(string apikey, string baseurl = "https://api.xcxwo.com")
     {
         this._apikey = apikey;
         this._baseurl = baseurl;
