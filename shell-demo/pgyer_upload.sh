@@ -7,8 +7,10 @@
 # ---------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------
-readonly API_BASE_URL="http://api.xcxwo.com/apiv2"
+readonly API_DOMAIN="api.pgyer.com"
+readonly API_BASE_URL="http://${API_DOMAIN}/apiv2"
 readonly SUPPORTED_TYPES=("ipa" "apk" "hap")
+readonly DOH_SERVICE="https://dns.alidns.com/resolve"
 
 # ---------------------------------------------------------------
 # Configuration
@@ -21,7 +23,26 @@ JSON_OUTPUT=0
 # Utility Functions
 # ---------------------------------------------------------------
 log() {
-    [ $LOG_ENABLE -eq 1 ] && echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    [ $LOG_ENABLE -eq 1 ] && echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >&2
+}
+
+resolveDomainViaDoH() {
+    local domain="$1"
+    log "Resolving ${domain} via DoH..."
+    
+    local response=$(curl -s -H 'Accept: application/dns-json' "${DOH_SERVICE}?name=${domain}&type=A")
+    
+    # Parse the first IP address from the response
+    local ip=$(echo "${response}" | grep -o '"data":"[0-9.]*"' | head -1 | cut -d'"' -f4)
+    
+    if [ -z "${ip}" ]; then
+        log "Warning: DoH resolution failed, falling back to system DNS"
+        return 1
+    fi
+    
+    log "Resolved ${domain} to ${ip}"
+    echo "${ip}"
+    return 0
 }
 
 logTitle() {
@@ -113,6 +134,7 @@ getUploadToken() {
     logTitle "Step 1: Get Token"
 
     local command="curl -s"
+    [ -n "${RESOLVED_IP}" ] && command="${command} --resolve ${API_DOMAIN}:80:${RESOLVED_IP}"
     [ -n "$api_key" ]                && command="${command} --form-string '_api_key=${api_key}'"
     [ -n "$buildType" ]              && command="${command} --form-string 'buildType=${buildType}'"
     [ -n "$buildInstallType" ]       && command="${command} --form-string 'buildInstallType=${buildInstallType}'"
@@ -145,18 +167,27 @@ uploadFile() {
     local progress_option="--progress-bar"
     [ $PROGRESS_ENABLE -eq 0 ] && progress_option="-s"
 
-    execCommand "curl -o /dev/null -w '%{http_code}' \
+    # Upload with timeout and better error handling
+    local command="curl -o /dev/null -w '%{http_code}' \
         ${progress_option} \
+        --connect-timeout 30 \
+        --max-time 1800 \
         --form-string 'key=${key}' \
         --form-string 'signature=${signature}' \
         --form-string 'x-cos-security-token=${x_cos_security_token}' \
         --form-string 'x-cos-meta-file-name=${file_name}' \
-        -F 'file=@${file}' ${endpoint}"
+        -F 'file=@\"${file}\"' \
+        '${endpoint}'"
+    
+    execCommand "$command"
 
     if [ $result -ne 204 ]; then
-        log "Error: Upload failed"
+        log "Error: Upload failed with HTTP status code: ${result}"
+        log "Please check your network connection and file permissions"
         exit 1
     fi
+    
+    log "File uploaded successfully"
 }
 
 checkResult() {
@@ -165,9 +196,11 @@ checkResult() {
     local max_retries=60
     local url_printed=0
     local final_result=""
+    local resolve_param=""
+    [ -n "${RESOLVED_IP}" ] && resolve_param="--resolve ${API_DOMAIN}:80:${RESOLVED_IP}"
 
     for i in $(seq 1 $max_retries); do
-        execCommand "curl -s ${API_BASE_URL}/app/buildInfo?_api_key=${api_key}\&buildKey=${key}"
+        execCommand "curl -s ${resolve_param} ${API_BASE_URL}/app/buildInfo?_api_key=${api_key}\&buildKey=${key}"
         final_result="${result}"
         
         # Parse the result
@@ -207,6 +240,10 @@ checkResult() {
 main() {
     parseArguments "$@"
     validateInputs
+    
+    # Resolve API domain via DoH to avoid DNS pollution
+    RESOLVED_IP=$(resolveDomainViaDoH "${API_DOMAIN}")
+    
     getUploadToken
     uploadFile
     checkResult
