@@ -20,7 +20,7 @@
 
 示例输出：
 ```
-➜  shell-demo git:(main) ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
+$ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 
 ▶ Selecting available API domain
 
