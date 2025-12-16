@@ -7,10 +7,13 @@
 # ---------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------
-readonly API_DOMAIN="api.pgyer.com"
-readonly API_BASE_URL="http://${API_DOMAIN}/apiv2"
+readonly API_DOMAINS=("api.pgyer.com" "api.xcxwo.com" "api.pgyeraapp.com")
 readonly SUPPORTED_TYPES=("ipa" "apk" "hap")
 readonly DOH_SERVICE="https://dns.alidns.com/resolve"
+
+# These will be set after domain selection
+API_DOMAIN=""
+API_BASE_URL=""
 
 # ---------------------------------------------------------------
 # Configuration
@@ -68,6 +71,44 @@ log_step() {
 
 log_verbose() {
     [ $VERBOSE_MODE -eq 1 ] && [ $LOG_ENABLE -eq 1 ] && echo -e "  ${COLOR_YELLOW}→${COLOR_RESET} $*" >&2
+}
+
+testDomainConnectivity() {
+    local domain="$1"
+    local test_url="http://${domain}/apiv2/app/getCOSToken"
+    
+    log_verbose "Testing connectivity to ${domain}..."
+    
+    # Try to connect with a short timeout
+    local http_code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "${test_url}" 2>/dev/null)
+    
+    if [ "${http_code}" = "000" ] || [ -z "${http_code}" ]; then
+        log_verbose "${domain} is not reachable"
+        return 1
+    fi
+    
+    log_verbose "${domain} is reachable (HTTP ${http_code})"
+    return 0
+}
+
+selectAvailableDomain() {
+    log_step "Selecting available API domain"
+    
+    for domain in "${API_DOMAINS[@]}"; do
+        if testDomainConnectivity "${domain}"; then
+            API_DOMAIN="${domain}"
+            API_BASE_URL="http://${API_DOMAIN}/apiv2"
+            log_success "Using domain: ${API_DOMAIN}"
+            
+            # Try to resolve via DoH
+            RESOLVED_IP=$(resolveDomainViaDoH "${API_DOMAIN}")
+            return 0
+        fi
+    done
+    
+    log_error "All API domains are unreachable"
+    log_error "Tried domains: ${API_DOMAINS[*]}"
+    exit 1
 }
 
 resolveDomainViaDoH() {
@@ -307,8 +348,8 @@ main() {
     parseArguments "$@"
     validateInputs
     
-    # Resolve API domain via DoH to avoid DNS pollution
-    RESOLVED_IP=$(resolveDomainViaDoH "${API_DOMAIN}")
+    # Select an available API domain
+    selectAvailableDomain
     
     getUploadToken
     uploadFile
