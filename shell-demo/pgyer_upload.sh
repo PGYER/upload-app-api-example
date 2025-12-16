@@ -14,12 +14,13 @@ readonly DOH_SERVICE="https://dns.alidns.com/resolve"
 # These will be set after domain selection
 API_DOMAIN=""
 API_BASE_URL=""
+WEB_DOMAIN=""
 
 # ---------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------
 LOG_ENABLE=1
-PROGRESS_ENABLE=1
+PROGRESS_ENABLE=0
 JSON_OUTPUT=0
 VERBOSE_MODE=0
 
@@ -75,7 +76,7 @@ log_verbose() {
 
 testDomainConnectivity() {
     local domain="$1"
-    local test_url="http://${domain}/apiv2/app/getCOSToken"
+    local test_url="https://${domain}/apiv2/app/getCOSToken"
     
     log_verbose "Testing connectivity to ${domain}..."
     
@@ -98,6 +99,8 @@ selectAvailableDomain() {
         if testDomainConnectivity "${domain}"; then
             API_DOMAIN="${domain}"
             API_BASE_URL="http://${API_DOMAIN}/apiv2"
+            # Extract web domain by removing 'api.' prefix
+            WEB_DOMAIN="${domain#api.}"
             log_success "Using domain: ${API_DOMAIN}"
             
             # Try to resolve via DoH
@@ -160,7 +163,7 @@ Description:
   -s buildInstallStartDate         build install start date, format: yyyy-MM-dd
   -e buildInstallEndDate           build install end date, format: yyyy-MM-dd
   -c buildChannelShortcut          build channel shortcut
-  -q                               quiet mode, disable progress bar
+  -P                               show progress bar during upload
   -j                               output full JSON response after completion
   -v                               verbose mode, show detailed curl commands
   -h help                          show this help
@@ -172,7 +175,7 @@ EOF
 }
 
 parseArguments() {
-    while getopts 'k:t:p:d:s:e:c:qjvh' OPT; do
+    while getopts 'k:t:p:d:s:e:c:Pjvh' OPT; do
         case $OPT in
             k) api_key="$OPTARG";;
             t) buildInstallType="$OPTARG";;
@@ -182,7 +185,7 @@ parseArguments() {
             s) buildInstallStartDate="$OPTARG";;
             e) buildInstallEndDate="$OPTARG";;
             c) buildChannelShortcut="$OPTARG";;
-            q) PROGRESS_ENABLE=0;;
+            P) PROGRESS_ENABLE=1;;
             j) JSON_OUTPUT=1;;
             v) VERBOSE_MODE=1;;
             ?) printHelp;;
@@ -312,7 +315,7 @@ checkResult() {
             [ -n "$app_name" ] && echo -e "  ${COLOR_BOLD}App:${COLOR_RESET}     ${app_name}"
             [ -n "$version" ] && echo -e "  ${COLOR_BOLD}Version:${COLOR_RESET} ${version} (${version_code})"
             if [ -n "$shortcut_url" ]; then
-                echo -e "  ${COLOR_BOLD}URL:${COLOR_RESET}     ${COLOR_GREEN}https://www.xcxwo.com/${shortcut_url}${COLOR_RESET}"
+                echo -e "  ${COLOR_BOLD}URL:${COLOR_RESET}     ${COLOR_GREEN}https://${WEB_DOMAIN}/${shortcut_url}${COLOR_RESET}"
             fi
             echo ""
             break
