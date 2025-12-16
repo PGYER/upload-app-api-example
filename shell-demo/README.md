@@ -4,6 +4,8 @@
 
 默认支持 Linux、Mac 平台。如需在 Windows 上使用，请安装 [git bash](https://gitforwindows.org)。
 
+![screenshot](screenshot.png)
+
 ## 使用说明
 
 为脚本赋予执行权限：
@@ -16,35 +18,83 @@
 
 ## 输出
 
-上传成功后，默认情况下直接输出 App 下载页面的 URL。如需额外输出完整 JSON 结果，请增加 `-j` 参数。
+上传成功后，默认输出应用名称、版本号和下载页面 URL。如需输出完整 JSON 结果，请增加 `-j` 参数。
 
-## 显示帮助
+示例输出：
+```
+✓ Build completed!
 
-    $ ./pgyer_upload.sh -h
-    
-    Usage: ./pgyer_upload.sh -k <api_key> [OPTION]... file
-    Upload iOS, Android or HarmonyOS app package file to PGYER.
-    Example: ./pgyer_upload.sh -k xxxxxxxxxxxxxxx /data/app.ipa
+  App:     F-Droid
+  Version: 1.18.0 (1018000)
+  URL:     https://www.pgyer.com/xxxx
+```
 
-    Description:
-      -k api_key                       (required) api key from PGYER
-      -t buildInstallType              build install type, 1=public, 2=password, 3=invite
-      -p buildPassword                 build password, required if buildInstallType=2
-      -d buildUpdateDescription        build update description
-      -e buildInstallDate              build install date, 1=buildInstallStartDate~buildInstallEndDate, 2=forever
-      -s buildInstallStartDate         build install start date, format: yyyy-MM-dd
-      -e buildInstallEndDate           build install end date, format: yyyy-MM-dd
-      -c buildChannelShortcut          build channel shortcut
-      -q                               quiet mode, disable progress bar
-      -j                               output full JSON response after completion
-      -h help                          show this help
+## 参数说明
 
-    Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>
-    Project home page: <https://github.com/PGYER/pgyer_api_example>
+### 必需参数
 
-## 日志
+- `-k <api_key>` - 蒲公英 API Key（必填）
 
-默认为关闭状态。您可以修改文件中的 `LOG_ENABLE=1` 来开启日志，这样可以在遇到错误时方便调试
+### 可选参数
+
+- `-t <buildInstallType>` - 安装方式：1=公开，2=密码，3=邀请
+- `-p <buildPassword>` - 安装密码（当 buildInstallType=2 时必填）
+- `-d <buildUpdateDescription>` - 版本更新描述
+- `-e <buildInstallDate>` - 安装有效期：1=自定义时间段，2=永久
+- `-s <buildInstallStartDate>` - 安装开始日期，格式：yyyy-MM-dd
+- `-e <buildInstallEndDate>` - 安装结束日期，格式：yyyy-MM-dd
+- `-c <buildChannelShortcut>` - 渠道标识
+- `-P` - 显示上传进度条（默认关闭）
+- `-j` - 输出完整 JSON 响应结果
+- `-v` - 详细模式，显示详细的 curl 命令和连接测试信息
+- `-h` - 显示帮助信息
+
+### 示例
+
+基本用法：
+```bash
+./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 ~/Downloads/app.apk
+```
+
+显示上传进度：
+```bash
+./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -P ~/Downloads/app.apk
+```
+
+详细模式：
+```bash
+./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -v ~/Downloads/app.apk
+```
+
+设置密码安装：
+```bash
+./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -t 2 -p 123456 ~/Downloads/app.apk
+```
+
+## 日志与调试
+
+### 日志控制
+
+默认为开启状态（`LOG_ENABLE=1`）。您可以修改脚本中的 `LOG_ENABLE=0` 来关闭日志。
+
+日志会显示彩色的状态信息：
+- ✓（绿色）：成功
+- ℹ（蓝色）：信息
+- ⚠（黄色）：警告
+- ✗（红色）：错误
+
+### 详细模式
+
+使用 `-v` 参数启用详细模式，可以看到：
+- 域名连接测试详情
+- DoH 域名解析结果
+- 详细的 curl 命令
+
+这在遇到网络问题时非常有用。
+
+### 进度条
+
+上传文件时，默认不显示进度条。如需显示上传进度，请添加 `-P` 参数。
 
 ## Windows 用户
 
@@ -57,8 +107,12 @@
 
 完成后，就会直接返回 App 的上传结果
 
-## 其他
+## 问题排查
 
-[显示上传进度](https://github.com/PGYER/pgyer_api_example/issues/19)
+如果遇到上传问题，建议：
 
+1. 使用 `-v` 参数启用详细模式查看详细信息
+2. 检查网络连接是否正常
+3. 确认 API Key 是否正确
+4. 确认文件路径是否正确，文件是否有读取权限
 
