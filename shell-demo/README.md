@@ -4,8 +4,6 @@
 
 默认支持 Linux、Mac 平台。如需在 Windows 上使用，请安装 [git bash](https://gitforwindows.org)。
 
-![screenshot](screenshot.png)
-
 ## 使用说明
 
 为脚本赋予执行权限：
@@ -22,11 +20,31 @@
 
 示例输出：
 ```
+➜  shell-demo git:(main) ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
+
+▶ Selecting available API domain
+
+✓ Using domain: api.pgyer.com
+ℹ Resolving api.pgyer.com...
+
+▶ Step 1/3: Getting upload token
+
+✓ Token obtained successfully
+
+▶ Step 2/3: Uploading file
+
+ℹ File: example.apk (10M)
+✓ File uploaded successfully
+
+▶ Step 3/3: Processing build
+
+ℹ Waiting for build processing...
+  ⠼ Processing... (4s)
 ✓ Build completed!
 
-  App:     F-Droid
-  Version: 1.18.0 (1018000)
-  URL:     https://www.pgyer.com/xxxx
+  App:     Example
+  Version: 1.17.0 (1017050)
+  URL:     https://pgyer.com/******
 ```
 
 ## 参数说明
@@ -53,22 +71,22 @@
 
 基本用法：
 ```bash
-./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 ~/Downloads/app.apk
+./pgyer_upload.sh -k <your-api-key> ~/Downloads/app.apk
 ```
 
 显示上传进度：
 ```bash
-./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -P ~/Downloads/app.apk
+./pgyer_upload.sh -k <your-api-key> -P ~/Downloads/app.apk
 ```
 
 详细模式：
 ```bash
-./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -v ~/Downloads/app.apk
+./pgyer_upload.sh -k <your-api-key> -v ~/Downloads/app.apk
 ```
 
 设置密码安装：
 ```bash
-./pgyer_upload.sh -k c3bb8fde1919514f8fb4d8694d38b4e2 -t 2 -p 123456 ~/Downloads/app.apk
+./pgyer_upload.sh -k <your-api-key> -t 2 -p 123456 ~/Downloads/app.apk
 ```
 
 ## 日志与调试
