@@ -18,6 +18,26 @@ readonly DOH_SERVICE="https://dns.alidns.com/resolve"
 LOG_ENABLE=1
 PROGRESS_ENABLE=1
 JSON_OUTPUT=0
+VERBOSE_MODE=0
+
+# Colors
+if [ -t 1 ]; then
+    COLOR_RESET='\033[0m'
+    COLOR_GREEN='\033[0;32m'
+    COLOR_BLUE='\033[0;34m'
+    COLOR_YELLOW='\033[0;33m'
+    COLOR_RED='\033[0;31m'
+    COLOR_CYAN='\033[0;36m'
+    COLOR_BOLD='\033[1m'
+else
+    COLOR_RESET=''
+    COLOR_GREEN=''
+    COLOR_BLUE=''
+    COLOR_YELLOW=''
+    COLOR_RED=''
+    COLOR_CYAN=''
+    COLOR_BOLD=''
+fi
 
 # ---------------------------------------------------------------
 # Utility Functions
@@ -26,9 +46,33 @@ log() {
     [ $LOG_ENABLE -eq 1 ] && echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >&2
 }
 
+log_success() {
+    [ $LOG_ENABLE -eq 1 ] && echo -e "${COLOR_GREEN}✓${COLOR_RESET} $*" >&2
+}
+
+log_info() {
+    [ $LOG_ENABLE -eq 1 ] && echo -e "${COLOR_BLUE}ℹ${COLOR_RESET} $*" >&2
+}
+
+log_warning() {
+    [ $LOG_ENABLE -eq 1 ] && echo -e "${COLOR_YELLOW}⚠${COLOR_RESET} $*" >&2
+}
+
+log_error() {
+    echo -e "${COLOR_RED}✗${COLOR_RESET} $*" >&2
+}
+
+log_step() {
+    [ $LOG_ENABLE -eq 1 ] && echo -e "\n${COLOR_CYAN}${COLOR_BOLD}▶ $*${COLOR_RESET}\n" >&2
+}
+
+log_verbose() {
+    [ $VERBOSE_MODE -eq 1 ] && [ $LOG_ENABLE -eq 1 ] && echo -e "  ${COLOR_YELLOW}→${COLOR_RESET} $*" >&2
+}
+
 resolveDomainViaDoH() {
     local domain="$1"
-    log "Resolving ${domain} via DoH..."
+    log_info "Resolving ${domain}..."
     
     local response=$(curl -s -H 'Accept: application/dns-json' "${DOH_SERVICE}?name=${domain}&type=A")
     
@@ -36,21 +80,21 @@ resolveDomainViaDoH() {
     local ip=$(echo "${response}" | grep -o '"data":"[0-9.]*"' | head -1 | cut -d'"' -f4)
     
     if [ -z "${ip}" ]; then
-        log "Warning: DoH resolution failed, falling back to system DNS"
+        log_warning "DoH resolution failed, falling back to system DNS"
         return 1
     fi
     
-    log "Resolved ${domain} to ${ip}"
+    log_verbose "Resolved to ${ip}"
     echo "${ip}"
     return 0
 }
 
 logTitle() {
-    log "-------------------------------- $* --------------------------------"
+    log "$*"
 }
 
 execCommand() {
-    log "$@"
+    log_verbose "$@"
     result=$(eval $@)
 }
 
@@ -77,6 +121,7 @@ Description:
   -c buildChannelShortcut          build channel shortcut
   -q                               quiet mode, disable progress bar
   -j                               output full JSON response after completion
+  -v                               verbose mode, show detailed curl commands
   -h help                          show this help
 
 Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>
@@ -86,7 +131,7 @@ EOF
 }
 
 parseArguments() {
-    while getopts 'k:t:p:d:s:e:c:qjh' OPT; do
+    while getopts 'k:t:p:d:s:e:c:qjvh' OPT; do
         case $OPT in
             k) api_key="$OPTARG";;
             t) buildInstallType="$OPTARG";;
@@ -98,6 +143,7 @@ parseArguments() {
             c) buildChannelShortcut="$OPTARG";;
             q) PROGRESS_ENABLE=0;;
             j) JSON_OUTPUT=1;;
+            v) VERBOSE_MODE=1;;
             ?) printHelp;;
         esac
     done
@@ -131,7 +177,7 @@ validateInputs() {
 # Business Logic Functions
 # ---------------------------------------------------------------
 getUploadToken() {
-    logTitle "Step 1: Get Token"
+    log_step "Step 1/3: Getting upload token"
 
     local command="curl -s"
     [ -n "${RESOLVED_IP}" ] && command="${command} --resolve ${API_DOMAIN}:80:${RESOLVED_IP}"
@@ -155,15 +201,20 @@ getUploadToken() {
     [[ "${result}" =~ \"x-cos-security-token\":\"([\_A-Za-z0-9\-]+)\" ]] && x_cos_security_token=`echo ${BASH_REMATCH[1]}`
 
     if [ -z "$key" ] || [ -z "$signature" ] || [ -z "$x_cos_security_token" ] || [ -z "$endpoint" ]; then
-        log "Error: Failed to get upload token"
+        log_error "Failed to get upload token"
         exit 1
     fi
+    
+    log_success "Token obtained successfully"
 }
 
 uploadFile() {
-    logTitle "Step 2: Upload File"
+    log_step "Step 2/3: Uploading file"
 
     local file_name=${file##*/}
+    local file_size=$(ls -lh "${file}" | awk '{print $5}')
+    log_info "File: ${file_name} (${file_size})"
+    
     local progress_option="--progress-bar"
     [ $PROGRESS_ENABLE -eq 0 ] && progress_option="-s"
 
@@ -182,23 +233,24 @@ uploadFile() {
     execCommand "$command"
 
     if [ $result -ne 204 ]; then
-        log "Error: Upload failed with HTTP status code: ${result}"
-        log "Please check your network connection and file permissions"
+        log_error "Upload failed with HTTP status code: ${result}"
+        log_error "Please check your network connection and file permissions"
         exit 1
     fi
     
-    log "File uploaded successfully"
+    log_success "File uploaded successfully"
 }
 
 checkResult() {
-    logTitle "Step 3: Check Result"
+    log_step "Step 3/3: Processing build"
 
     local max_retries=60
-    local url_printed=0
     local final_result=""
     local resolve_param=""
     [ -n "${RESOLVED_IP}" ] && resolve_param="--resolve ${API_DOMAIN}:80:${RESOLVED_IP}"
 
+    log_info "Waiting for build processing..."
+    
     for i in $(seq 1 $max_retries); do
         execCommand "curl -s ${resolve_param} ${API_BASE_URL}/app/buildInfo?_api_key=${api_key}\&buildKey=${key}"
         final_result="${result}"
@@ -207,29 +259,43 @@ checkResult() {
         [[ "${result}" =~ \"code\":([0-9]+) ]] && code=`echo ${BASH_REMATCH[1]}`
         
         if [ $code -eq 0 ]; then
-            # Extract and print URL only once
-            if [ $url_printed -eq 0 ]; then
-                [[ "${result}" =~ \"buildShortcutUrl\":\"([^\"]+)\" ]] && shortcut_url=`echo ${BASH_REMATCH[1]}`
-                if [ -n "$shortcut_url" ]; then
-                    log "Upload successful! App URL: https://www.xcxwo.com/${shortcut_url}"
-                fi
-                url_printed=1
+            # Extract app information
+            [[ "${result}" =~ \"buildShortcutUrl\":\"([^\"]+)\" ]] && shortcut_url=`echo ${BASH_REMATCH[1]}`
+            [[ "${result}" =~ \"buildVersion\":\"([^\"]+)\" ]] && version=`echo ${BASH_REMATCH[1]}`
+            [[ "${result}" =~ \"buildVersionNo\":\"([^\"]+)\" ]] && version_code=`echo ${BASH_REMATCH[1]}`
+            [[ "${result}" =~ \"buildName\":\"([^\"]+)\" ]] && app_name=`echo ${BASH_REMATCH[1]}`
+            
+            echo ""
+            log_success "Build completed!"
+            echo ""
+            [ -n "$app_name" ] && echo -e "  ${COLOR_BOLD}App:${COLOR_RESET}     ${app_name}"
+            [ -n "$version" ] && echo -e "  ${COLOR_BOLD}Version:${COLOR_RESET} ${version} (${version_code})"
+            if [ -n "$shortcut_url" ]; then
+                echo -e "  ${COLOR_BOLD}URL:${COLOR_RESET}     ${COLOR_GREEN}https://www.xcxwo.com/${shortcut_url}${COLOR_RESET}"
             fi
+            echo ""
             break
         else
-            log "Checking build status... (Attempt ${i}/${max_retries})"
+            # Show progress with spinner
+            local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+            local idx=$((i % 10))
+            printf "\r  ${spinner[$idx]} Processing... (${i}s)" >&2
             sleep 1
         fi
     done
+    
+    # Clear progress line
+    printf "\r\033[K" >&2
 
     if [ $code -ne 0 ]; then
-        log "Error: Build check failed after ${max_retries} attempts"
+        log_error "Build check failed after ${max_retries} attempts"
         exit 1
     fi
 
     # Output full JSON response if requested
     if [ $JSON_OUTPUT -eq 1 ]; then
-        log "Full response JSON:"
+        echo ""
+        echo "${COLOR_BOLD}Full JSON Response:${COLOR_RESET}"
         echo "${final_result}"
     fi
 }
