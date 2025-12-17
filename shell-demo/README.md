@@ -1,8 +1,6 @@
 # shell 脚本使用说明
 
-使用 curl 命令上传 app 安装包到蒲公英平台。
-
-默认支持 Linux、Mac 平台。如需在 Windows 上使用，请安装 [git bash](https://gitforwindows.org)。
+在命令行中，上传 app 安装包到蒲公英平台(PGYER)，默认支持 Linux、Mac 平台。
 
 ## 使用说明
 
@@ -94,12 +92,6 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 ### 日志控制
 
 默认为开启状态（`LOG_ENABLE=1`）。您可以修改脚本中的 `LOG_ENABLE=0` 来关闭日志。
-
-日志会显示彩色的状态信息：
-- ✓（绿色）：成功
-- ℹ（蓝色）：信息
-- ⚠（黄色）：警告
-- ✗（红色）：错误
 
 ### 详细模式
 
