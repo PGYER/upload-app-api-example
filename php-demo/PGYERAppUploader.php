@@ -75,10 +75,20 @@ class PGYERAppUploader
 
     private $apikey = '';
     public $log = false;
+    private $dnsService = 'https://dns.alidns.com/resolve';
+    private $serviceHosts = [
+        'api.pgyer.com',
+        'api.xcxwo.com',
+        'api.pgyerapp.com'
+    ];
+
+    private $host = NULL;
+    private $hostname = NULL;
 
     public function __construct($apikey)
     {
         $this->apikey = $apikey;
+        $this->checkConnectivity();
     }
 
     public function upload($config)
@@ -107,6 +117,8 @@ class PGYERAppUploader
                 throw new Exception('Unsupported file type: ' . $ext);
         }
 
+        $this->log("Start upload, using service: {$this->hostname} ({$this->host}) ...");
+
         $params = [
             "_api_key" => $this->apikey,
             "buildType" => $buildType
@@ -121,7 +133,7 @@ class PGYERAppUploader
 
         $this->log("get upload token with params: " . json_encode($params));
 
-        $res = $this->sendRequest("http://api.xcxwo.com/apiv2/app/getCOSToken", $params);
+        $res = $this->sendRequest("/apiv2/app/getCOSToken", $params);
         $this->log($res);
         $res = json_decode($res, true);
 
@@ -146,7 +158,7 @@ class PGYERAppUploader
         }
 
         // step 3: get uploaded app data
-        $url = "http://api.xcxwo.com/apiv2/app/buildInfo?_api_key=" . $this->apikey . "&buildKey=$key";
+        $url = "/apiv2/app/buildInfo?_api_key=" . $this->apikey . "&buildKey=$key";
         $this->log("get build info from: " . $url);
         for ($i = 0; $i < 60; $i++) {
             $resp = $this->sendRequest($url);
@@ -166,7 +178,17 @@ class PGYERAppUploader
 
     public function sendRequest($url, $params = [], &$httpcode = 0)
     {
-        $ch = curl_init($url);
+        $ch = curl_init();
+        if (strpos($url, '/') === 0) {
+            curl_setopt($ch, CURLOPT_URL, "https://{$this->hostname}{$url}");
+            curl_setopt($ch, CURLOPT_RESOLVE, [
+                "{$this->hostname}:443:{$this->host}",
+                "{$this->hostname}:80:{$this->host}",
+            ]);
+        } else {
+            curl_setopt($ch, CURLOPT_URL, $url);
+        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         if (!empty($params)) {
@@ -177,7 +199,7 @@ class PGYERAppUploader
         $result = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        curl_close($ch);
+        @curl_close($ch);
         return $result;
     }
 
@@ -192,5 +214,35 @@ class PGYERAppUploader
         }
 
         echo date("Y-m-d H:i:s") . " " . $message . "\n";
+    }
+
+    private function checkConnectivity ()
+    {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 5
+            ]
+        ]);
+        foreach ($this->serviceHosts as $host) {
+            $data = @json_decode(file_get_contents("https://{$host}/apiv2", false, $context), TRUE);
+            if ($data && $data['code'] === 1001) {
+                $this->host = $host;
+                $this->hostname = $host;
+                return;
+            }
+
+            $data = @json_decode(file_get_contents("{$this->dnsService}?name={$host}&type=A", false, $context), TRUE);
+            $data = array_values(array_filter($data['Answer'] ?? [], function ($item) use ($host) {
+                return $item['type'] === 1;
+            }));
+
+            if ($data && count($data) > 0) {
+                $this->host = $data[0]['data'];
+                $this->hostname = $host;
+                return;
+            }
+        }
+
+        throw new Exception('Cannot connect to PGYER API service.');
     }
 }
