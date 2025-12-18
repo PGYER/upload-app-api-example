@@ -2,17 +2,21 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http;
 
 class PGYERAppUploader
 {
     private readonly string _apikey;
-    private readonly string _baseurl;
     private bool _debug;
     private readonly string[] _suffixs = [".ipa", ".apk", ".hap"];
-    public PGYERAppUploader(string apikey, string baseurl = "https://api.xcxwo.com")
+    private string _host = null;
+    private string _hostname = null;
+    private readonly string _dnsService = "https://dns.alidns.com/resolve";
+    private readonly string[] _serviceHosts = ["api.pgyer.com", "api.xcxwo.com", "api.pgyerapp.com"];
+    public PGYERAppUploader(string apikey)
     {
         this._apikey = apikey;
-        this._baseurl = baseurl;
+        this.CheckConnectivity();
     }
 
     public void WithDebug()
@@ -53,6 +57,8 @@ class PGYERAppUploader
             default:
                 throw new Exception($"Unsupported file type: {file.Extension}. Supported types: .ipa, .apk, .hap");
         }
+
+        this.Record($"Start upload, using service: {this._hostname} ({this._host}) ...");
         
         CosTokenRequest cosTokenRequest = new CosTokenRequest
         {
@@ -163,7 +169,7 @@ class PGYERAppUploader
 
         FormUrlEncodedContent content = new FormUrlEncodedContent(request.Serialize());
 
-        this.Record($"get build info from: {this._baseurl}/apiv2/app/buildInfo?{content.ReadAsStringAsync().Result}");
+        this.Record($"get build info from: https://{this._hostname}/apiv2/app/buildInfo?{content.ReadAsStringAsync().Result}");
 
         HttpResponseMessage response = this.get($"/apiv2/app/buildInfo?{content.ReadAsStringAsync().Result}");
 
@@ -175,33 +181,158 @@ class PGYERAppUploader
 
     private HttpResponseMessage post(string url, HttpContent content, Dictionary<string, string> headers = null, int timeout = 30)
     {
-        using (var client = new HttpClient())
-        {
-            client.BaseAddress = new Uri(this._baseurl);
-            client.Timeout = new TimeSpan(0, 0, timeout);
-
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                    client.DefaultRequestHeaders.Add(header.Key, header.Value);
-            }
-            return client.PostAsync(url, content).Result;
-        }
+        return SendRequest(url, content, headers, timeout, "POST");
     }
 
     private HttpResponseMessage get(string url, Dictionary<string, string> headers = null, int timeout = 30)
     {
-        using (var client = new HttpClient())
+        return SendRequest(url, null, headers, timeout, "GET");
+    }
+
+    private HttpResponseMessage SendRequest(string url, HttpContent content = null, Dictionary<string, string> headers = null, int timeout = 30, string method = "POST")
+    {
+        var handler = new SocketsHttpHandler();
+        
+        using (var client = new HttpClient(handler))
         {
             client.Timeout = new TimeSpan(0, 0, timeout);
-            client.BaseAddress = new Uri(this._baseurl);
-            if (headers != null)
+            
+            if (url.StartsWith("/"))
             {
-                foreach (var header in headers)
-                    client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                // For relative paths, use hostname with IP resolution (similar to CURLOPT_RESOLVE)
+                var uri = new Uri($"https://{this._hostname}{url}");
+                
+                // Create a custom connection to use the host IP instead of hostname
+                handler.ConnectCallback = async (context, cancellationToken) =>
+                {
+                    var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                    try
+                    {
+                        await socket.ConnectAsync(this._host, 443, cancellationToken);
+                        return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch
+                    {
+                        socket.Dispose();
+                        throw;
+                    }
+                };
+                
+                // Add Host header to ensure proper SNI and Host header
+                if (headers == null)
+                    headers = new Dictionary<string, string>();
+                if (!headers.ContainsKey("Host"))
+                    headers["Host"] = this._hostname;
+                
+                if (headers != null)
+                {
+                    foreach (var header in headers)
+                        if (!client.DefaultRequestHeaders.Contains(header.Key))
+                            client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                }
+                
+                if (method == "GET")
+                {
+                    return client.GetAsync(uri).Result;
+                }
+                else
+                {
+                    return client.PostAsync(uri, content).Result;
+                }
             }
-            return client.GetAsync(url).Result;
+            else
+            {
+                // For absolute URLs (like COS endpoint), use directly
+                var uri = new Uri(url);
+                
+                if (headers != null)
+                {
+                    foreach (var header in headers)
+                        if (!client.DefaultRequestHeaders.Contains(header.Key))
+                            client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                }
+                
+                if (method == "GET")
+                {
+                    return client.GetAsync(uri).Result;
+                }
+                else
+                {
+                    return client.PostAsync(uri, content).Result;
+                }
+            }
         }
+    }
 
+    private void CheckConnectivity()
+    {
+        foreach (var host in this._serviceHosts)
+        {
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = new TimeSpan(0, 0, 5);
+                    var response = client.GetAsync($"https://{host}/apiv2").Result;
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = response.Content.ReadAsStringAsync().Result;
+                        using (JsonDocument doc = JsonDocument.Parse(content))
+                        {
+                            if (doc.RootElement.TryGetProperty("code", out var codeElement) && codeElement.GetInt32() == 1001)
+                            {
+                                this._host = host;
+                                this._hostname = host;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                
+                // Try DNS resolution
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = new TimeSpan(0, 0, 5);
+                    var dnsUrl = $"{this._dnsService}?name={host}&type=A";
+                    var response = client.GetAsync(dnsUrl).Result;
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = response.Content.ReadAsStringAsync().Result;
+                        using (JsonDocument doc = JsonDocument.Parse(content))
+                        {
+                            if (doc.RootElement.TryGetProperty("Answer", out var answerArray))
+                            {
+                                foreach (var item in answerArray.EnumerateArray())
+                                {
+                                    if (item.TryGetProperty("type", out var typeElement) && typeElement.GetInt32() == 1)
+                                    {
+                                        if (item.TryGetProperty("data", out var dataElement))
+                                        {
+                                            this._host = dataElement.GetString();
+                                            this._hostname = host;
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+        
+        throw new Exception("Cannot connect to PGYER API service.");
     }
 }
