@@ -118,7 +118,14 @@ const uploadOptions = {
 // 调用方式 1: 使用回调函数调用
 // uploader.upload(uploadOptions, function (error, result) {
   // error ? console.error(error): console.log(result);
+  // process.exit(0);
 // });
 
 // 调用方式 2: 使用 Promise 调用
-uploader.upload(uploadOptions).then(console.log).catch(console.error);
+uploader.upload(uploadOptions).then(res => {
+    console.log(res);
+    process.exit(0);
+}).catch(error => {
+    console.error(error);
+    process.exit(1);
+});

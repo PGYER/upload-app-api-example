@@ -109,20 +109,130 @@ const FormData = require('form-data');
 
 module.exports = function (apiKey) {
   const LOG_TAG = '[PGYER APP UPLOADER]';
+  const MAIN_SERVICES = ['api.pgyer.com', 'api.xcxwo.com', 'api.pgyerapp.com'];
+  const DNS_SERVICE = 'https://dns.alidns.com/resolve';
+  const service = {};
+
+  function checkServiceConnectivity(hostname, host = false) {
+    if (!host) {
+      host = hostname;
+    }
+
+    return new Promise(function (resolve, reject) {
+      const req = https.request({
+        hostname: host,
+        path: '/apiv2',
+        method: 'GET',
+        agent: false,
+        headers: {
+          'HOST': hostname
+        }
+      }, response => {
+        if (response.statusCode === 200) {
+          resolve({ host: host, hostname: hostname });
+        } else {
+          reject(false);
+        }
+      });
+
+      req.on('error', function () {
+        req.destroy();
+        reject(false);
+      });
+
+      req.setTimeout(3000, function () {
+        req.destroy();
+        reject(false);
+      });
+
+      req.end();
+    });
+  }
+
+  function checkServiceConnectivityDNS(host) {
+    return new Promise(function (resolve, reject) {
+      const req = https.request(DNS_SERVICE + '?name=' + host + '&type=A', {
+        method: 'GET',
+        agent: false,
+        headers: {
+          'HOST': 'dns.alidns.com'
+        }
+      }, response => {
+        if (response.statusCode !== 200) {
+          reject(false);
+          return;
+        }
+
+        let responseData = '';
+        response.on('data', data => {
+          responseData += data.toString();
+        })
+
+        response.on('end', () => {
+          const responseText = responseData.toString();
+          try {
+            const responseInfo = JSON.parse(responseText);
+            if (responseInfo.Status === 0 && responseInfo.Answer && responseInfo.Answer.length > 0) {
+              for (let i = 0; i < responseInfo.Answer.length; i++) {
+                if (responseInfo.Answer[i].type === 1) {
+                  checkServiceConnectivity(host, responseInfo.Answer[i].data).then(resolve).catch(reject);
+                  return;
+                }
+              }
+            }
+            reject(false);
+          } catch (error) {
+            reject(false);
+          }
+        })
+      });
+
+      req.on('error', function () {
+        req.destroy();
+        reject(false);
+      });
+
+      req.setTimeout(3000, function () {
+        req.destroy();
+        reject(false);
+      });
+
+      req.end();
+    });
+  }
+
+  function checkServiceHost(finishFn) {
+    Promise.any([
+      new Promise(function (resolve, reject) { setTimeout(reject, 5000); }),
+      ...MAIN_SERVICES.map(checkServiceConnectivity),
+      ...MAIN_SERVICES.map(checkServiceConnectivityDNS),
+    ]).then(function (result) {
+      service.host = result.host;
+      service.hostname = result.hostname;
+      try {
+        finishFn();
+      } catch (e) {}
+    }).catch(function () {
+      throw new Error(LOG_TAG + ' All services are down.');
+    });
+  }
+
   let uploadOptions = '';
   this.upload = function (options, callback) {
     if (options && typeof options.filePath === 'string') {
       uploadOptions = options;
       if (typeof callback === 'function') {
-        uploadApp(callback);
+        checkServiceHost(function () { uploadApp(callback) });
         return null;
       } else {
         return new Promise(function(resolve, reject) {
-          uploadApp(function (error, data) {
-            if (error === null) {
-              return resolve(data);
-            }
-            return reject(error);
+          checkServiceHost(function () {
+            uploadApp(function (error, data) {
+              if (error === null) {
+                return resolve(data);
+              }
+              return reject(error);
+            });
           });
         });
       }
@@ -132,6 +242,7 @@ module.exports = function (apiKey) {
   }
 
   function uploadApp (callback) {
+    uploadOptions.log && console.log(LOG_TAG + 'Start upload, using service: ' + service.hostname + ' (' + service.host + ') ...');
     // step 1: get app upload token
     const fileExt = uploadOptions.filePath.split('.').pop().toLowerCase();
     let buildType;
@@ -159,11 +270,14 @@ module.exports = function (apiKey) {
     });
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');
+
     const uploadTokenRequest = https.request({
-      hostname: 'api.xcxwo.com',
+      hostname: service.host,
       path: '/apiv2/app/getCOSToken',
       method: 'POST',
+      agent: false,
       headers: {
+        'HOST': service.hostname,
         'Content-Type' : 'application/x-www-form-urlencoded',
         'Content-Length' : uploadTokenRequestData.length
       }
@@ -179,6 +293,7 @@ module.exports = function (apiKey) {
       })
     
       response.on('end', () => {
+        uploadTokenRequest.destroy();
         const responseText = responseData.toString();
         try {
           const responseInfo = JSON.parse(responseText);
@@ -192,6 +307,10 @@ module.exports = function (apiKey) {
         }
       })
     })
+
+    uploadTokenRequest.on('error', function() {
+      uploadTokenRequest.destroy();
+    });
 
     uploadTokenRequest.write(uploadTokenRequestData);
     uploadTokenRequest.end();
@@ -226,6 +345,7 @@ module.exports = function (apiKey) {
         }
         if (response.statusCode === 204) {
           setTimeout(() => getUploadResult(uploadData), 1000);
+          uploadAppRequestData.destroy();
         } else {
           callback(new Error(LOG_TAG + ' Upload Error!'), null);
         }
@@ -235,10 +355,12 @@ module.exports = function (apiKey) {
     // step 3: get uploaded app data
     function getUploadResult (uploadData) {
       const uploadResultRequest = https.request({
-        hostname: 'api.xcxwo.com',
+        hostname: service.host,
         path: '/apiv2/app/buildInfo?_api_key=' + apiKey + '&buildKey=' + uploadData.data.key,
         method: 'POST',
+        agent: false,
         headers: {
+          'HOST': service.hostname,
           'Content-Type' : 'application/x-www-form-urlencoded',
           'Content-Length' : 0
         }
@@ -254,6 +376,7 @@ module.exports = function (apiKey) {
         })
       
         response.on('end', () => {
+          uploadResultRequest.destroy();
           const responseText = responseData.toString();
           try {
             const responseInfo = JSON.parse(responseText);
@@ -269,9 +392,12 @@ module.exports = function (apiKey) {
             callback(error, null);
           }
         })
-      
       })
-    
+
+      uploadResultRequest.on('error', function() {
+        uploadResultRequest.destroy();
+      });
+
       uploadResultRequest.write(uploadTokenRequestData);
       uploadResultRequest.end();
     }
