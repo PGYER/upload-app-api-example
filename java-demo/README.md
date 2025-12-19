@@ -5,13 +5,14 @@
 ## 功能
 
 该项目提供了一个 Java 版本的 PGYER App 上传器，支持上传以下应用类型：
+
 - iOS (.ipa)
 - Android (.apk)
 - HarmonyOS (.hap)
 
 ## 项目结构
 
-```
+```text
 java-demo/
 ├── pom.xml                          # Maven 配置文件
 └── src/
@@ -25,6 +26,7 @@ java-demo/
 ## 依赖
 
 该项目使用 Maven 进行依赖管理，主要依赖包括：
+
 - Apache HttpClient 4.5.14
 - Google Gson 2.10.1
 - SLF4J 2.0.7
