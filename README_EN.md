@@ -28,6 +28,7 @@ See the example code in the folders for each language in the project:
 - [Postman API Call Template](https://www.postman.com/pgyerdevs/workspace/pgyer-api)
 - [Github Actions Workflow](https://github.com/PGYER/pgyer-upload-app-action)
 - [Fastlane Plugin](https://github.com/shishirui/fastlane-plugin-pgyer)
+- [MCP Server](https://github.com/PGYER/pgyer-mcp-server)
 
 ## Links
 

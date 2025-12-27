@@ -32,6 +32,7 @@
  - [Postman API 调用模板](https://www.postman.com/pgyerdevs/workspace/pgyer-api)
  - [Github Actions 工作流](https://github.com/PGYER/pgyer-upload-app-action)
  - [Fastlane 插件](https://github.com/shishirui/fastlane-plugin-pgyer)
+ - [MCP 服务器](https://github.com/PGYER/pgyer-mcp-server)
 
 ## 链接
 
