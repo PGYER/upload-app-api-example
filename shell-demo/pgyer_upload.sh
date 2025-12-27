@@ -149,24 +149,25 @@ printHelp() {
     cat << EOF
 Usage: $0 -k <api_key> [OPTION]... file
 Upload iOS, Android or HarmonyOS app package file to PGYER.
-Examples: 
-  $0 -k xxxxxxxxxxxxxxx /data/app.ipa     # Upload iOS app
-  $0 -k xxxxxxxxxxxxxxx /data/app.apk     # Upload Android app  
-  $0 -k xxxxxxxxxxxxxxx /data/app.hap     # Upload HarmonyOS app
 
-Description:
-  -k api_key                       (required) api key from PGYER
-  -t buildInstallType              build install type, 1=public, 2=password, 3=invite
-  -p buildPassword                 build password, required if buildInstallType=2
-  -d buildUpdateDescription        build update description
-  -e buildInstallDate              build install date, 1=buildInstallStartDate~buildInstallEndDate, 2=forever
-  -s buildInstallStartDate         build install start date, format: yyyy-MM-dd
-  -e buildInstallEndDate           build install end date, format: yyyy-MM-dd
-  -c buildChannelShortcut          build channel shortcut
-  -P                               show progress bar during upload
-  -j                               output full JSON response after completion
-  -v                               verbose mode, show detailed curl commands
-  -h help                          show this help
+Examples: 
+  $0 -k xxxxxxxxxxxxxxx /path/to/app.ipa     # Upload iOS app
+  $0 -k xxxxxxxxxxxxxxx /path/to/app.apk     # Upload Android app  
+  $0 -k xxxxxxxxxxxxxxx /path/to/app.hap     # Upload HarmonyOS app
+
+Options:
+  -k <api_key>       (required) API key from PGYER
+  -t <type>          Build install type: 1=public, 2=password, 3=invite
+  -p <password>      Build password (required if type=2)
+  -d <desc>          Build update description
+  -e <date_type>     Build install date type: 1=interval, 2=forever
+  -s <start_date>    Build install start date (yyyy-MM-dd)
+  -e <end_date>      Build install end date (yyyy-MM-dd)
+  -c <shortcut>      Build channel shortcut
+  -P                 Show progress bar during upload
+  -j                 Output full JSON response after completion
+  -v                 Verbose mode, show detailed curl commands
+  -h                 Show this help
 
 Report bugs to: <https://github.com/PGYER/pgyer_api_example/issues>
 Project home page: <https://github.com/PGYER/pgyer_api_example>
@@ -199,21 +200,24 @@ parseArguments() {
 validateInputs() {
     # Check API key
     if [ -z "$api_key" ]; then
-        echo "Error: api_key is empty"
-        printHelp
+        log_error "API key is required. Use -k option to specify your API key."
+        log_info "Run '$0 -h' to see usage information"
+        exit 1
     fi
 
     # Check if file exists
     if [ ! -f "$file" ]; then
-        echo "Error: file not exists"
-        printHelp
+        log_error "File not found: ${file}"
+        log_info "Run '$0 -h' to see usage information"
+        exit 1
     fi
 
     # Check if file type is supported
     buildType=${file##*.}
     if [[ ! " ${SUPPORTED_TYPES[@]} " =~ " ${buildType} " ]]; then
-        echo "Error: file extension '${buildType}' is not supported"
-        printHelp
+        log_error "Unsupported file type '${buildType}'. Supported types: ${SUPPORTED_TYPES[*]}"
+        log_info "Run '$0 -h' to see usage information"
+        exit 1
     fi
 }
 
