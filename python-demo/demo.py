@@ -29,8 +29,8 @@ if __name__ == "__main__":
       print('='*60)
 
   # 从环境变量读取配置
-  app_path = os.environ.get('PGYER_APP_PATH')  # 从环境变量 PGYER_APP_PATH 读取应用路径
-  pgyer_api_key = os.environ.get('PGYER_API_KEY')  # 从环境变量 PGYER_API_KEY 读取 API KEY
+  app_path = os.environ.get('PGYER_APP_PATH')
+  pgyer_api_key = os.environ.get('PGYER_API_KEY')
   
   # 检查必需的环境变量
   if not app_path:
