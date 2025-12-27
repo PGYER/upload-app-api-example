@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # -*- author: LinXunFeng -*-
 
+import os
 from utils import upload_pgyer as PgyerUtil
 
 if __name__ == "__main__":
@@ -27,9 +28,17 @@ if __name__ == "__main__":
       print('❌ 上传失败！')
       print('='*60)
 
-  # 示例文件路径 (支持 .ipa/.apk/.hap 文件)
-  app_path = '/Users/rexshi/Downloads/apks/5d7d326764b75788d021f7e579264a01.apk'  # 例如: '/path/to/app.ipa' 或 '/path/to/app.apk' 或 '/path/to/app.hap'
-  pgyer_api_key = 'c3bb8fde1919514f8fb4d8694d38b4e2' # API KEY
+  # 从环境变量读取配置
+  app_path = os.environ.get('PGYER_APP_PATH')  # 从环境变量 PGYER_APP_PATH 读取应用路径
+  pgyer_api_key = os.environ.get('PGYER_API_KEY')  # 从环境变量 PGYER_API_KEY 读取 API KEY
+  
+  # 检查必需的环境变量
+  if not app_path:
+    print('❌ 错误: 请设置环境变量 PGYER_APP_PATH')
+    exit(1)
+  if not pgyer_api_key:
+    print('❌ 错误: 请设置环境变量 PGYER_API_KEY')
+    exit(1)
 
   PgyerUtil.upload_to_pgyer(
     path = app_path, 
