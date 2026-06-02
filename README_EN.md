@@ -29,6 +29,7 @@ See the example code in the folders for each language in the project:
 - [Github Actions Workflow](https://github.com/PGYER/pgyer-upload-app-action)
 - [Fastlane Plugin](https://github.com/shishirui/fastlane-plugin-pgyer)
 - [MCP Server](https://github.com/PGYER/pgyer-mcp-server)
+- [Agent Skill](https://github.com/PGYER/pgyer-skill)
 
 ## Links
 
