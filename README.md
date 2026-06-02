@@ -33,7 +33,7 @@
  - [Github Actions 工作流](https://github.com/PGYER/pgyer-upload-app-action)
  - [Fastlane 插件](https://github.com/shishirui/fastlane-plugin-pgyer)
  - [MCP 服务器](https://github.com/PGYER/pgyer-mcp-server)
- - [PGYER Skill](https://github.com/PGYER/pgyer-skill)
+ - [Agent Skill](https://github.com/PGYER/pgyer-skill)
 
 ## 链接
 
