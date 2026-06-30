@@ -58,11 +58,11 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 - `-d <buildUpdateDescription>` - 版本更新描述
 - `-e <buildInstallDate>` - 安装有效期：1=自定义时间段，2=永久
 - `-s <buildInstallStartDate>` - 安装开始日期，格式：yyyy-MM-dd
-- `-e <buildInstallEndDate>` - 安装结束日期，格式：yyyy-MM-dd
+- `-E <buildInstallEndDate>` - 安装结束日期，格式：yyyy-MM-dd
 - `-c <buildChannelShortcut>` - 渠道标识
 - `-P` - 显示上传进度条（默认关闭）
 - `-j` - 输出完整 JSON 响应结果
-- `-v` - 详细模式，显示详细的 curl 命令和连接测试信息
+- `-v` - 详细模式，显示脱敏后的 curl 命令和连接测试信息
 - `-h` - 显示帮助信息
 
 ### 示例
@@ -89,6 +89,8 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 
 ## 日志与调试
 
+上传阶段会对临时网络错误进行有限重试（最多 3 次），并在失败时输出 `curl exit` 与 HTTP 状态码，便于区分网络断开、超时和服务端响应错误。
+
 ### 日志控制
 
 默认为开启状态（`LOG_ENABLE=1`）。您可以修改脚本中的 `LOG_ENABLE=0` 来关闭日志。
@@ -98,7 +100,7 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 使用 `-v` 参数启用详细模式，可以看到：
 - 域名连接测试详情
 - DoH 域名解析结果
-- 详细的 curl 命令
+- 脱敏后的 curl 命令
 
 这在遇到网络问题时非常有用。
 
@@ -125,4 +127,3 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 2. 检查网络连接是否正常
 3. 确认 API Key 是否正确
 4. 确认文件路径是否正确，文件是否有读取权限
-
