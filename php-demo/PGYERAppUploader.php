@@ -75,6 +75,10 @@ class PGYERAppUploader
 
     private $apikey = '';
     public $log = false;
+    private $connectTimeout = 30;
+    private $requestTimeout = 120;
+    private $uploadTimeout = 0;
+    private $uploadMaxRetries = 3;
     private $dnsService = 'https://dns.alidns.com/resolve';
     private $serviceHosts = [
         'api.pgyer.com',
@@ -93,10 +97,21 @@ class PGYERAppUploader
 
     public function upload($config)
     {
+        if (empty($config['filePath'])) {
+            throw new Exception('filePath is required');
+        }
+
         $filePath = $config['filePath'];
+        if (!is_file($filePath)) {
+            throw new Exception('App file does not exist: ' . $filePath);
+        }
+
+        if (!is_readable($filePath)) {
+            throw new Exception('App file is not readable: ' . $filePath);
+        }
 
         // step 1: get app upload token
-        $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         if (!in_array($ext, ['ipa', 'apk', 'hap'])) {
             throw new Exception('Invalid file type. Supported types: ipa, apk, hap');
         }
@@ -131,39 +146,48 @@ class PGYERAppUploader
             }
         }
 
-        $this->log("get upload token with params: " . json_encode($params));
+        $this->log("get upload token with params: " . json_encode($this->redactSensitiveData($params), JSON_UNESCAPED_UNICODE));
 
         $res = $this->sendRequest("/apiv2/app/getCOSToken", $params);
-        $this->log($res);
         $res = json_decode($res, true);
-
-        if ($res['code'] != 0 || empty($res['data'])) {
-            throw new Exception('Failed to get upload token: ' . $res['message']);
+        if (!is_array($res)) {
+            throw new Exception('Failed to parse upload token response: ' . json_last_error_msg());
         }
-        $key = $res['data']['key'];
+        $this->log(json_encode($this->redactSensitiveData($res), JSON_UNESCAPED_UNICODE));
+
+        if (($res['code'] ?? -1) != 0 || empty($res['data'])) {
+            throw new Exception('Failed to get upload token: ' . ($res['message'] ?? 'unknown error'));
+        }
+        if (empty($res['data']['key']) || empty($res['data']['endpoint']) || empty($res['data']['params'])) {
+            throw new Exception('Invalid upload token response: missing key, endpoint or params');
+        }
+
+        $buildKey = $res['data']['key'];
 
         // step 2: upload app to bucket
         $params = $res['data']['params'];
         $params['x-cos-meta-file-name'] = pathinfo($filePath, PATHINFO_BASENAME);
         $params['file'] = new CURLFile($filePath);
-        $this->log("upload app to bucket with params: " . json_encode($params));
-        $httpcode = 0;
-        $result = $this->sendRequest($res['data']['endpoint'], $params, $httpcode);
-        if ($httpcode == 204) {
-            $this->log("upload success");
-        } else {
-            $this->log("upload failed");
-            $this->log($result);
-            throw new Exception('Failed to upload app');
-        }
+        $this->log("upload app to bucket with params: " . json_encode($this->redactSensitiveData($params), JSON_UNESCAPED_UNICODE));
+        $this->uploadToBucket($res['data']['endpoint'], $params);
 
         // step 3: get uploaded app data
-        $url = "/apiv2/app/buildInfo?_api_key=" . $this->apikey . "&buildKey=$key";
-        $this->log("get build info from: " . $url);
+        $url = "/apiv2/app/buildInfo?" . http_build_query([
+            '_api_key' => $this->apikey,
+            'buildKey' => $buildKey
+        ]);
+        $this->log("get build info from: /apiv2/app/buildInfo?" . http_build_query([
+            '_api_key' => '***',
+            'buildKey' => '***'
+        ]));
         for ($i = 0; $i < 60; $i++) {
             $resp = $this->sendRequest($url);
             $res = json_decode($resp, true);
-            if ($res['code'] != 0) {
+            if (!is_array($res)) {
+                throw new Exception('Failed to parse build info response: ' . json_last_error_msg());
+            }
+
+            if (($res['code'] ?? -1) != 0) {
                 sleep(1);
                 $this->log("[$i] get app build info...");
                 continue;
@@ -176,20 +200,24 @@ class PGYERAppUploader
         return false;
     }
 
-    public function sendRequest($url, $params = [], &$httpcode = 0)
+    public function sendRequest($url, $params = [], &$httpcode = 0, $timeout = null)
     {
         $ch = curl_init();
         if (strpos($url, '/') === 0) {
             curl_setopt($ch, CURLOPT_URL, "https://{$this->hostname}{$url}");
-            curl_setopt($ch, CURLOPT_RESOLVE, [
-                "{$this->hostname}:443:{$this->host}",
-                "{$this->hostname}:80:{$this->host}",
-            ]);
+            if ($this->host && filter_var($this->host, FILTER_VALIDATE_IP)) {
+                curl_setopt($ch, CURLOPT_RESOLVE, [
+                    "{$this->hostname}:443:{$this->host}",
+                    "{$this->hostname}:80:{$this->host}",
+                ]);
+            }
         } else {
             curl_setopt($ch, CURLOPT_URL, $url);
         }
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout === null ? $this->requestTimeout : $timeout);
 
         if (!empty($params)) {
             curl_setopt($ch, CURLOPT_POST, true);
@@ -198,9 +226,101 @@ class PGYERAppUploader
 
         $result = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $errno = curl_errno($ch);
+        $error = curl_error($ch);
 
         @curl_close($ch);
+
+        if ($result === false) {
+            throw new Exception("Request failed: curl errno {$errno}, HTTP status {$httpcode}, error: {$error}");
+        }
+
         return $result;
+    }
+
+    private function uploadToBucket($endpoint, $params)
+    {
+        $lastError = null;
+
+        for ($attempt = 1; $attempt <= $this->uploadMaxRetries; $attempt++) {
+            $httpcode = 0;
+            try {
+                $result = $this->sendRequest($endpoint, $params, $httpcode, $this->uploadTimeout);
+                if ($httpcode == 204) {
+                    $this->log("upload success");
+                    return;
+                }
+
+                $lastError = "HTTP status {$httpcode}, response: {$result}";
+            } catch (Exception $e) {
+                $lastError = $e->getMessage();
+                $httpcode = $this->extractHttpStatus($lastError);
+            }
+
+            $this->log("upload attempt {$attempt} failed: {$lastError}");
+            if ($attempt >= $this->uploadMaxRetries || !$this->shouldRetryUpload($httpcode, $lastError)) {
+                break;
+            }
+
+            sleep($attempt);
+        }
+
+        throw new Exception('Failed to upload app: ' . ($lastError ?: 'unknown error'));
+    }
+
+    private function shouldRetryUpload($httpcode, $errorMessage)
+    {
+        if (in_array((int) $httpcode, [408, 429, 500, 502, 503, 504], true)) {
+            return true;
+        }
+
+        foreach ([28, 35, 52, 56] as $errno) {
+            if (strpos($errorMessage, "curl errno {$errno}") !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function extractHttpStatus($message)
+    {
+        if (preg_match('/HTTP status (\d+)/', $message, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    private function redactSensitiveData($data)
+    {
+        if (!is_array($data)) {
+            return $data;
+        }
+
+        $sensitiveKeys = [
+            '_api_key',
+            'buildPassword',
+            'key',
+            'signature',
+            'x-cos-security-token',
+            'buildKey',
+        ];
+
+        $redacted = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, $sensitiveKeys, true)) {
+                $redacted[$key] = '***';
+            } elseif ($value instanceof CURLFile) {
+                $redacted[$key] = '@' . $value->getFilename();
+            } elseif (is_array($value)) {
+                $redacted[$key] = $this->redactSensitiveData($value);
+            } else {
+                $redacted[$key] = $value;
+            }
+        }
+
+        return $redacted;
     }
 
     public function log($message)

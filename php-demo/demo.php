@@ -70,7 +70,7 @@
 * 
 */
 
-require_once 'PGYERAppUploader.php';
+require_once __DIR__ . '/PGYERAppUploader.php';
 
 try {
     $uploader = new PGYERAppUploader('<your api key>');
