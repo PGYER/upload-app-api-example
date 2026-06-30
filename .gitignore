@@ -2,5 +2,9 @@
 test*
 
 py3/
-__pycache__
-**/__init__*
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+python-demo/venv/

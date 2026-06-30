@@ -1,20 +1,28 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using System.Net.Http;
+using System.Text.RegularExpressions;
 
 class PGYERAppUploader
 {
     private readonly string _apikey;
     private bool _debug;
-    private readonly string[] _suffixs = [".ipa", ".apk", ".hap"];
-    private string _host = null;
-    private string _hostname = null;
+    private readonly string[] _suffixes = [".ipa", ".apk", ".hap"];
+    private string _host = "";
+    private string _hostname = "";
     private readonly string _dnsService = "https://dns.alidns.com/resolve";
     private readonly string[] _serviceHosts = ["api.pgyer.com", "api.xcxwo.com", "api.pgyerapp.com"];
+
+    private const int BuildInfoMaxAttempts = 60;
+    private const int BuildInfoPollIntervalMs = 1000;
+
     public PGYERAppUploader(string apikey)
     {
+        if (string.IsNullOrWhiteSpace(apikey))
+            throw new ArgumentException("API key is required.", nameof(apikey));
+
         this._apikey = apikey;
         this.CheckConnectivity();
     }
@@ -28,38 +36,25 @@ class PGYERAppUploader
     {
         if (this._debug)
         {
-            Console.WriteLine(string.Format("{0: yyyy-MM-dd HH:mm:ss.3f} {1}", DateTime.Now, message));
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {RedactSensitiveText(message)}");
         }
     }
 
     public Response<BuildInfoResponse> Upload(UploadOption option)
     {
-        FileInfo file = new FileInfo(@$"{option.FilePath}");
+        if (option == null)
+            throw new ArgumentNullException(nameof(option));
+
+        FileInfo file = new FileInfo(option.FilePath ?? "");
         if (!file.Exists)
-            throw new Exception($"no such {option.FilePath} file.");
-        if (!this._suffixs.Contains(file.Extension.ToLower()))
-            throw new Exception("invalid file extension, only support .ipa, .apk or .hap extension");
-        // step 1
-        // get costoken
-        // 根据文件扩展名确定buildType
-        string buildType;
-        switch (file.Extension.ToLower())
-        {
-            case ".ipa":
-                buildType = "ios";
-                break;
-            case ".apk":
-                buildType = "android";
-                break;
-            case ".hap":
-                buildType = "harmony";
-                break;
-            default:
-                throw new Exception($"Unsupported file type: {file.Extension}. Supported types: .ipa, .apk, .hap");
-        }
+            throw new FileNotFoundException($"No such file: {option.FilePath}", option.FilePath);
+        if (!this._suffixes.Contains(file.Extension.ToLowerInvariant()))
+            throw new Exception("Invalid file extension, only support .ipa, .apk or .hap extension");
+
+        string buildType = GetBuildType(file.Extension);
 
         this.Record($"Start upload, using service: {this._hostname} ({this._host}) ...");
-        
+
         CosTokenRequest cosTokenRequest = new CosTokenRequest
         {
             ApiKey = this._apikey,
@@ -78,8 +73,7 @@ class PGYERAppUploader
 
         if (cosTokenResponse.Code != 0 || cosTokenResponse.Data == null || cosTokenResponse.Data.Param == null)
             throw new Exception($"Failed to get upload token: {cosTokenResponse.Message}");
-        // step 2 
-        // upload app to bucket
+
         UploadAppRequest uploadAppRequest = new UploadAppRequest
         {
             Key = cosTokenResponse.Data.Param.Key,
@@ -89,77 +83,82 @@ class PGYERAppUploader
             Endpoint = cosTokenResponse.Data.Endpoint,
             File = file
         };
-        HttpResponseMessage uploadAppResponse = this.UploadApp(uploadAppRequest);
-        if (!uploadAppResponse.StatusCode.Equals(HttpStatusCode.NoContent))
-            throw new Exception($"Failed upload app to bucket: {uploadAppResponse.Content.ReadAsStringAsync().Result}");
+        this.UploadApp(uploadAppRequest);
         this.Record("upload app to bucket successful.");
-        // step 3 
-        // BuildInfo
+
         BuildInfoRequest buildInfoRequest = new BuildInfoRequest
         {
             ApiKey = this._apikey,
             BuildKey = cosTokenResponse.Data.Param.Key
         };
-        for (var time = 1; time <= 60; time++)
+        for (var time = 1; time <= BuildInfoMaxAttempts; time++)
         {
             this.Record($"[{time}] get app build info...");
             Response<BuildInfoResponse> buildInfoResponse = this.BuildInfo(buildInfoRequest);
             if (buildInfoResponse.Code != 0 || buildInfoResponse.Data == null)
             {
-                System.Threading.Thread.Sleep(1000);
+                Thread.Sleep(BuildInfoPollIntervalMs);
                 continue;
             }
             return buildInfoResponse;
         }
-        return null;
+
+        throw new TimeoutException($"Build processing timed out after {BuildInfoMaxAttempts} seconds.");
     }
 
     public Response<CosTokenResponse> GetCosToken(CosTokenRequest request)
     {
-
         if (!request.Validate())
-        {
             throw new Exception("CosTokenRequest invalid");
-        }
 
-        FormUrlEncodedContent content = new FormUrlEncodedContent(request.Serialize());
+        Dictionary<string, string> parameters = request.Serialize();
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(parameters);
 
-        this.Record($"get upload token with params: {content.ReadAsStringAsync().Result}");
+        this.Record($"get upload token with params: {FormatParameters(parameters)}");
 
-        HttpResponseMessage response = this.post("/apiv2/app/getCOSToken", content);
+        HttpResult response = this.Post("/apiv2/app/getCOSToken", content);
 
         if (!response.IsSuccessStatusCode)
-            throw new Exception($"POST /apiv2/app/getCOSToken {response.StatusCode} failed");
+            throw new Exception($"POST /apiv2/app/getCOSToken {response.StatusCode} failed: {response.Body}");
 
-        this.Record($"get upload token with response: {response.Content.ReadAsStringAsync().Result}");
+        this.Record($"get upload token with response: {response.Body}");
 
-        return JsonSerializer.Deserialize<Response<CosTokenResponse>>(response.Content.ReadAsStringAsync().Result);
+        return DeserializeResponse<CosTokenResponse>(response.Body);
     }
 
-    public HttpResponseMessage UploadApp(UploadAppRequest request)
+    public void UploadApp(UploadAppRequest request)
     {
         if (!request.Validate())
             throw new Exception("UploadAppRequest invalid");
-        string record = "";
+        if (string.IsNullOrWhiteSpace(request.Endpoint))
+            throw new Exception("Upload endpoint is required.");
+        if (request.File == null || !request.File.Exists)
+            throw new FileNotFoundException("Upload file does not exist.", request.File?.FullName);
+
+        Dictionary<string, string> parameters = request.Serialize();
         string boundary = string.Format("---------------------{0}", DateTime.Now.Ticks.ToString("x"));
-        using (MultipartFormDataContent multipart = new MultipartFormDataContent(boundary))
+
+        using MultipartFormDataContent multipart = new MultipartFormDataContent(boundary);
+        multipart.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={boundary}");
+
+        foreach (var param in parameters)
         {
-            multipart.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={boundary}");
-            // data field 
-            foreach (var param in request.Serialize())
-            {
-                var content = new ByteArrayContent(Encoding.UTF8.GetBytes(param.Value));
-                content.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=\"{param.Key}\"");
-                multipart.Add(content);
-                record += $"{param.Key}={param.Value}&";
-            }
-            // file field
-            var fileContent = new ByteArrayContent(File.ReadAllBytes(@$"{request.File.FullName}"));
-            fileContent.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=\"file\"; filename=\"{request.File.Name}\"");
-            multipart.Add(fileContent);
-            this.Record($"upload app to bucket with params: {record}file={request.File.FullName}");
-            return this.post(request.Endpoint, multipart);
+            var content = new ByteArrayContent(Encoding.UTF8.GetBytes(param.Value));
+            content.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=\"{param.Key}\"");
+            multipart.Add(content);
         }
+
+        using FileStream fileStream = request.File.OpenRead();
+        var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+        fileContent.Headers.TryAddWithoutValidation("Content-Disposition", $"form-data; name=\"file\"; filename=\"{request.File.Name}\"");
+        multipart.Add(fileContent);
+
+        this.Record($"upload app to bucket with params: {FormatParameters(parameters)}&file={request.File.FullName}");
+
+        HttpResult response = this.Post(request.Endpoint, multipart, timeout: 120);
+        if (response.StatusCode != HttpStatusCode.NoContent)
+            throw new Exception($"Failed upload app to bucket: HTTP {(int)response.StatusCode}, {response.Body}");
     }
 
     public Response<BuildInfoResponse> BuildInfo(BuildInfoRequest request)
@@ -167,123 +166,130 @@ class PGYERAppUploader
         if (!request.Validate())
             throw new Exception("BuildInfoRequest invalid");
 
-        FormUrlEncodedContent content = new FormUrlEncodedContent(request.Serialize());
+        Dictionary<string, string> parameters = request.Serialize();
+        string query = BuildQueryString(parameters);
 
-        this.Record($"get build info from: https://{this._hostname}/apiv2/app/buildInfo?{content.ReadAsStringAsync().Result}");
+        this.Record($"get build info from: https://{this._hostname}/apiv2/app/buildInfo?{query}");
 
-        HttpResponseMessage response = this.get($"/apiv2/app/buildInfo?{content.ReadAsStringAsync().Result}");
+        HttpResult response = this.Get($"/apiv2/app/buildInfo?{query}");
 
         if (!response.IsSuccessStatusCode)
-            throw new Exception($"GET /apiv2/app/buildInfo {response.StatusCode} failed.");
+            throw new Exception($"GET /apiv2/app/buildInfo {response.StatusCode} failed: {response.Body}");
 
-        return JsonSerializer.Deserialize<Response<BuildInfoResponse>>(response.Content.ReadAsStringAsync().Result);
+        return DeserializeResponse<BuildInfoResponse>(response.Body);
     }
 
-    private HttpResponseMessage post(string url, HttpContent content, Dictionary<string, string> headers = null, int timeout = 30)
+    private HttpResult Post(string url, HttpContent content, Dictionary<string, string>? headers = null, int timeout = 30)
     {
-        return SendRequest(url, content, headers, timeout, "POST");
+        return SendRequest(url, content, headers, timeout, HttpMethod.Post);
     }
 
-    private HttpResponseMessage get(string url, Dictionary<string, string> headers = null, int timeout = 30)
+    private HttpResult Get(string url, Dictionary<string, string>? headers = null, int timeout = 30)
     {
-        return SendRequest(url, null, headers, timeout, "GET");
+        return SendRequest(url, null, headers, timeout, HttpMethod.Get);
     }
 
-    private HttpResponseMessage SendRequest(string url, HttpContent content = null, Dictionary<string, string> headers = null, int timeout = 30, string method = "POST")
+    private HttpResult SendRequest(string url, HttpContent? content, Dictionary<string, string>? headers, int timeout, HttpMethod method)
     {
-        var handler = new SocketsHttpHandler();
-        
-        using (var client = new HttpClient(handler))
+        using var handler = new SocketsHttpHandler();
+        Uri uri;
+        bool useResolvedHost = url.StartsWith("/");
+
+        if (useResolvedHost)
         {
-            client.Timeout = new TimeSpan(0, 0, timeout);
-            
-            if (url.StartsWith("/"))
+            uri = new Uri($"https://{this._hostname}{url}");
+            handler.ConnectCallback = async (context, cancellationToken) =>
             {
-                // For relative paths, use hostname with IP resolution (similar to CURLOPT_RESOLVE)
-                var uri = new Uri($"https://{this._hostname}{url}");
-                
-                // Create a custom connection to use the host IP instead of hostname
-                handler.ConnectCallback = async (context, cancellationToken) =>
+                var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                try
                 {
-                    var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
-                    try
-                    {
-                        await socket.ConnectAsync(this._host, 443, cancellationToken);
-                        return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
-                    }
-                    catch
-                    {
-                        socket.Dispose();
-                        throw;
-                    }
-                };
-                
-                // Add Host header to ensure proper SNI and Host header
-                if (headers == null)
-                    headers = new Dictionary<string, string>();
-                if (!headers.ContainsKey("Host"))
-                    headers["Host"] = this._hostname;
-                
-                if (headers != null)
-                {
-                    foreach (var header in headers)
-                        if (!client.DefaultRequestHeaders.Contains(header.Key))
-                            client.DefaultRequestHeaders.Add(header.Key, header.Value);
+                    await socket.ConnectAsync(this._host, 443, cancellationToken);
+                    return new NetworkStream(socket, ownsSocket: true);
                 }
-                
-                if (method == "GET")
+                catch
                 {
-                    return client.GetAsync(uri).Result;
+                    socket.Dispose();
+                    throw;
                 }
-                else
-                {
-                    return client.PostAsync(uri, content).Result;
-                }
-            }
-            else
-            {
-                // For absolute URLs (like COS endpoint), use directly
-                var uri = new Uri(url);
-                
-                if (headers != null)
-                {
-                    foreach (var header in headers)
-                        if (!client.DefaultRequestHeaders.Contains(header.Key))
-                            client.DefaultRequestHeaders.Add(header.Key, header.Value);
-                }
-                
-                if (method == "GET")
-                {
-                    return client.GetAsync(uri).Result;
-                }
-                else
-                {
-                    return client.PostAsync(uri, content).Result;
-                }
-            }
+            };
         }
+        else
+        {
+            uri = new Uri(url);
+        }
+
+        using var client = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(timeout)
+        };
+
+        using var request = new HttpRequestMessage(method, uri);
+        if (content != null)
+            request.Content = content;
+
+        if (useResolvedHost)
+            request.Headers.Host = this._hostname;
+
+        if (headers != null)
+        {
+            foreach (var header in headers)
+                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        using HttpResponseMessage response = client.Send(request);
+        string body = response.Content == null ? "" : response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+        return new HttpResult
+        {
+            StatusCode = response.StatusCode,
+            Body = body
+        };
     }
 
     private void CheckConnectivity()
     {
-        foreach (var host in this._serviceHosts)
+        foreach (var serviceHost in this._serviceHosts)
         {
             try
             {
-                using (var client = new HttpClient())
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                using var response = client.GetAsync($"https://{serviceHost}/apiv2").Result;
+
+                if (response.IsSuccessStatusCode)
                 {
-                    client.Timeout = new TimeSpan(0, 0, 5);
-                    var response = client.GetAsync($"https://{host}/apiv2").Result;
-                    
-                    if (response.IsSuccessStatusCode)
+                    var content = response.Content.ReadAsStringAsync().Result;
+                    using JsonDocument doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("code", out var codeElement) && codeElement.GetInt32() == 1001)
                     {
-                        var content = response.Content.ReadAsStringAsync().Result;
-                        using (JsonDocument doc = JsonDocument.Parse(content))
+                        this._host = serviceHost;
+                        this._hostname = serviceHost;
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                var dnsUrl = $"{this._dnsService}?name={serviceHost}&type=A";
+                using var response = client.GetAsync(dnsUrl).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = response.Content.ReadAsStringAsync().Result;
+                    using JsonDocument doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("Answer", out var answerArray))
+                    {
+                        foreach (var item in answerArray.EnumerateArray())
                         {
-                            if (doc.RootElement.TryGetProperty("code", out var codeElement) && codeElement.GetInt32() == 1001)
+                            if (item.TryGetProperty("type", out var typeElement) && typeElement.GetInt32() == 1 &&
+                                item.TryGetProperty("data", out var dataElement))
                             {
-                                this._host = host;
-                                this._hostname = host;
+                                this._host = dataElement.GetString() ?? "";
+                                this._hostname = serviceHost;
                                 return;
                             }
                         }
@@ -293,46 +299,80 @@ class PGYERAppUploader
             catch
             {
             }
-
-            try
-            {
-                
-                // Try DNS resolution
-                using (var client = new HttpClient())
-                {
-                    client.Timeout = new TimeSpan(0, 0, 5);
-                    var dnsUrl = $"{this._dnsService}?name={host}&type=A";
-                    var response = client.GetAsync(dnsUrl).Result;
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = response.Content.ReadAsStringAsync().Result;
-                        using (JsonDocument doc = JsonDocument.Parse(content))
-                        {
-                            if (doc.RootElement.TryGetProperty("Answer", out var answerArray))
-                            {
-                                foreach (var item in answerArray.EnumerateArray())
-                                {
-                                    if (item.TryGetProperty("type", out var typeElement) && typeElement.GetInt32() == 1)
-                                    {
-                                        if (item.TryGetProperty("data", out var dataElement))
-                                        {
-                                            this._host = dataElement.GetString();
-                                            this._hostname = host;
-                                            return;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
         }
-        
+
         throw new Exception("Cannot connect to PGYER API service.");
+    }
+
+    private static string GetBuildType(string extension)
+    {
+        switch (extension.ToLowerInvariant())
+        {
+            case ".ipa":
+                return "ios";
+            case ".apk":
+                return "android";
+            case ".hap":
+                return "harmony";
+            default:
+                throw new Exception($"Unsupported file type: {extension}. Supported types: .ipa, .apk, .hap");
+        }
+    }
+
+    private static Response<T> DeserializeResponse<T>(string body)
+    {
+        var result = JsonSerializer.Deserialize<Response<T>>(body);
+        if (result == null)
+            throw new Exception("Failed to parse PGYER API response.");
+        return result;
+    }
+
+    private static string BuildQueryString(Dictionary<string, string> parameters)
+    {
+        return string.Join("&", parameters.Select(item =>
+            $"{Uri.EscapeDataString(item.Key)}={Uri.EscapeDataString(item.Value)}"));
+    }
+
+    private static string FormatParameters(Dictionary<string, string> parameters)
+    {
+        return string.Join("&", parameters.Select(item =>
+            $"{item.Key}={RedactSensitiveValue(item.Key, item.Value)}"));
+    }
+
+    private static string RedactSensitiveValue(string key, string value)
+    {
+        return IsSensitiveKey(key) ? "***" : value;
+    }
+
+    private static bool IsSensitiveKey(string key)
+    {
+        return key.Equals("_api_key", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("key", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("signature", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("x-cos-security-token", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("buildPassword", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("buildKey", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string RedactSensitiveText(string text)
+    {
+        string redacted = Regex.Replace(
+            text,
+            "((?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)=)([^&\\s]+)",
+            "$1***",
+            RegexOptions.IgnoreCase);
+
+        return Regex.Replace(
+            redacted,
+            "(\"(?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)\"\\s*:\\s*\")([^\"]+)(\")",
+            "$1***$3",
+            RegexOptions.IgnoreCase);
+    }
+
+    private class HttpResult
+    {
+        public HttpStatusCode StatusCode { get; set; }
+        public string Body { get; set; } = "";
+        public bool IsSuccessStatusCode => (int)StatusCode >= 200 && (int)StatusCode <= 299;
     }
 }

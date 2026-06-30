@@ -43,6 +43,10 @@ if __name__ == "__main__":
   PgyerUtil.upload_to_pgyer(
     path = app_path, 
     api_key = pgyer_api_key,
-    install_type = 1,  # 1:公开 2:密码安装 3:邀请安装
+    install_type = os.environ.get('PGYER_INSTALL_TYPE', '1'),  # 1:公开 2:密码安装 3:邀请安装
+    oversea = os.environ.get('PGYER_OVERSEA', ''),
+    password = os.environ.get('PGYER_INSTALL_PASSWORD', ''),
+    build_description = os.environ.get('PGYER_BUILD_DESCRIPTION', ''),
+    update_description = os.environ.get('PGYER_UPDATE_DESCRIPTION', ''),
     callback=upload_complete_callback
   )

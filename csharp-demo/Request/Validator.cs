@@ -15,7 +15,7 @@ public static class Validator
                 {
                     if (attribute == null)
                     {
-                        throw new Exception("Validator not instantiate");
+                        throw new Exception("Validator attribute is not instantiated");
                     }
                     if (!attribute.Validate(item.GetValue(entity) ?? ""))
                     {

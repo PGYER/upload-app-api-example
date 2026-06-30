@@ -16,7 +16,7 @@ public static class ParameterizeBuilder
                 {
                     if (attribute == null)
                     {
-                        throw new Exception("Paramter not instantiate");
+                        throw new Exception("Parameter attribute is not instantiated");
                     }
                     var inner = attribute.Serialize(property.GetValue(entity) ?? "");
                     parameters = merge(parameters, inner);

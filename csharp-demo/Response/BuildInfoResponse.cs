@@ -28,7 +28,7 @@ public class BuildInfoResponse
     public string BuildDescription { get; set; }
     [JsonPropertyName("buildUpdateDescription")]
     public string BuildUpdateDescription { get; set; }
-    [JsonPropertyName("buildScreenShots")]
+    [JsonPropertyName("buildScreenshots")]
     public string BuildScreenShots { get; set; }
     [JsonPropertyName("buildShortcutUrl")]
     public string BuildShortcutUrl { get; set; }
