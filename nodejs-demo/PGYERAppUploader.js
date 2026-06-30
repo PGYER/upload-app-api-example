@@ -104,6 +104,7 @@
 
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const querystring = require('querystring');
 const FormData = require('form-data');
 
@@ -121,6 +122,7 @@ module.exports = function (apiKey) {
     return new Promise(function (resolve, reject) {
       const req = https.request({
         hostname: host,
+        servername: hostname,
         path: '/apiv2',
         method: 'GET',
         agent: false,
@@ -128,6 +130,7 @@ module.exports = function (apiKey) {
           'HOST': hostname
         }
       }, response => {
+        response.resume();
         if (response.statusCode === 200) {
           resolve({ host: host, hostname: hostname });
         } else {
@@ -201,47 +204,85 @@ module.exports = function (apiKey) {
     });
   }
 
-  function checkServiceHost(finishFn) {
-    Promise.any([
-      new Promise(function (resolve, reject) { setTimeout(reject, 5000); }),
+  function checkServiceHost() {
+    const checks = [
       ...MAIN_SERVICES.map(checkServiceConnectivity),
       ...MAIN_SERVICES.map(checkServiceConnectivityDNS),
-    ]).then(function (result) {
-      service.host = result.host;
-      service.hostname = result.hostname;
-      try {
-        finishFn();
-      } catch (e) {}
-    }).catch(function () {
-      throw new Error(LOG_TAG + ' All services are down.');
+    ];
+
+    return new Promise(function (resolve, reject) {
+      let finished = false;
+      let pending = checks.length;
+      const timer = setTimeout(function () {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        reject(new Error(LOG_TAG + ' All services are down.'));
+      }, 5000);
+
+      checks.forEach(function (check) {
+        check.then(function (result) {
+          if (finished) {
+            return;
+          }
+          finished = true;
+          clearTimeout(timer);
+          service.host = result.host;
+          service.hostname = result.hostname;
+          resolve(result);
+        }).catch(function () {
+          pending -= 1;
+          if (!finished && pending === 0) {
+            finished = true;
+            clearTimeout(timer);
+            reject(new Error(LOG_TAG + ' All services are down.'));
+          }
+        });
+      });
     });
   }
 
-  let uploadOptions = '';
   this.upload = function (options, callback) {
     if (options && typeof options.filePath === 'string') {
-      uploadOptions = options;
       if (typeof callback === 'function') {
-        checkServiceHost(function () { uploadApp(callback) });
+        checkServiceHost()
+          .then(function () { uploadApp(options, callback); })
+          .catch(function (error) { callback(error, null); });
         return null;
-      } else {
-        return new Promise(function(resolve, reject) {
-          checkServiceHost(function () {
-            uploadApp(function (error, data) {
-              if (error === null) {
-                return resolve(data);
-              }
-              return reject(error);
-            });
-          });
-        });
       }
+
+      return new Promise(function(resolve, reject) {
+        checkServiceHost()
+          .then(function () {
+            uploadApp(options, function (error, data) {
+              if (error) {
+                reject(error);
+                return;
+              }
+              resolve(data);
+            });
+          })
+          .catch(function (error) {
+            reject(error);
+          });
+      });
     }
 
     throw new Error('filePath must be a string');
   }
 
-  function uploadApp (callback) {
+  function uploadApp (uploadOptions, callback) {
+    let finished = false;
+
+    function done(error, data) {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      callback(error, data);
+    }
+
     uploadOptions.log && console.log(LOG_TAG + 'Start upload, using service: ' + service.hostname + ' (' + service.host + ') ...');
     // step 1: get app upload token
     const fileExt = uploadOptions.filePath.split('.').pop().toLowerCase();
@@ -259,20 +300,36 @@ module.exports = function (apiKey) {
         buildType = 'harmony';
         break;
       default:
-        callback(new Error(LOG_TAG + ' Unsupported file type: ' + fileExt + '. Supported types: ipa, apk, hap'), null);
+        done(new Error(LOG_TAG + ' Unsupported file type: ' + fileExt + '. Supported types: ipa, apk, hap'), null);
         return;
     }
     
-    const uploadTokenRequestData = querystring.stringify({
-      ...uploadOptions,
+    const tokenParams = {
       _api_key: apiKey,
       buildType: buildType
+    };
+
+    [
+      'buildInstallType',
+      'buildPassword',
+      'buildUpdateDescription',
+      'buildInstallDate',
+      'buildInstallStartDate',
+      'buildInstallEndDate',
+      'buildChannelShortcut'
+    ].forEach(function (key) {
+      if (uploadOptions[key] !== undefined && uploadOptions[key] !== null && uploadOptions[key] !== '') {
+        tokenParams[key] = uploadOptions[key];
+      }
     });
+
+    const uploadTokenRequestData = querystring.stringify(tokenParams);
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');
 
     const uploadTokenRequest = https.request({
       hostname: service.host,
+      servername: service.hostname,
       path: '/apiv2/app/getCOSToken',
       method: 'POST',
       agent: false,
@@ -283,7 +340,8 @@ module.exports = function (apiKey) {
       }
     }, response => {
       if (response.statusCode !== 200) {
-        callback(new Error(LOG_TAG + 'Service down: cannot get upload token.'), null);
+        response.resume();
+        done(new Error(LOG_TAG + ' Service down: cannot get upload token. HTTP status: ' + response.statusCode), null);
         return;
       }
     
@@ -298,18 +356,22 @@ module.exports = function (apiKey) {
         try {
           const responseInfo = JSON.parse(responseText);
           if (responseInfo.code) {
-            callback(new Error(LOG_TAG + 'Service down: ' + responseInfo.code + ': ' + responseInfo.message), null);
+            done(new Error(LOG_TAG + 'Service down: ' + responseInfo.code + ': ' + responseInfo.message), null);
             return;
           }
           uploadApp(responseInfo);
         } catch (error) {
-          callback(error, null);
+          done(error, null);
         }
       })
     })
 
-    uploadTokenRequest.on('error', function() {
-      uploadTokenRequest.destroy();
+    uploadTokenRequest.on('error', function(error) {
+      done(error, null);
+    });
+
+    uploadTokenRequest.setTimeout(30000, function () {
+      uploadTokenRequest.destroy(new Error(LOG_TAG + ' Get upload token request timed out.'));
     });
 
     uploadTokenRequest.write(uploadTokenRequestData);
@@ -321,13 +383,13 @@ module.exports = function (apiKey) {
       uploadOptions.log && console.log(LOG_TAG + ' Uploading app ... Please Wait ...');
       const exsit = fs.existsSync(uploadOptions.filePath);
       if (!exsit) {
-        callback(new Error(LOG_TAG + ' filePath: file not exist'), null);
+        done(new Error(LOG_TAG + ' filePath: file not exist'), null);
         return;
       }
 
       const statResult = fs.statSync(uploadOptions.filePath);
       if (!statResult || !statResult.isFile()) {
-        callback(new Error(LOG_TAG + ' filePath: path not a file'), null);
+        done(new Error(LOG_TAG + ' filePath: path not a file'), null);
         return;
       }
 
@@ -335,28 +397,41 @@ module.exports = function (apiKey) {
       uploadAppRequestData.append('signature', uploadData.data.params.signature);
       uploadAppRequestData.append('x-cos-security-token', uploadData.data.params['x-cos-security-token']);
       uploadAppRequestData.append('key', uploadData.data.params.key);
-      uploadAppRequestData.append('x-cos-meta-file-name', uploadOptions.filePath.replace(/^.*[\\\/]/, ''));
+      uploadAppRequestData.append('x-cos-meta-file-name', path.basename(uploadOptions.filePath));
       uploadAppRequestData.append('file', fs.createReadStream(uploadOptions.filePath));
 
       uploadAppRequestData.submit(uploadData.data.endpoint, function (error, response) {
         if (error) {
-          callback(error, null);
+          uploadAppRequestData.destroy();
+          done(error, null);
           return;
         }
+
+        response.resume();
         if (response.statusCode === 204) {
           setTimeout(() => getUploadResult(uploadData), 1000);
           uploadAppRequestData.destroy();
         } else {
-          callback(new Error(LOG_TAG + ' Upload Error!'), null);
+          uploadAppRequestData.destroy();
+          done(new Error(LOG_TAG + ' Upload Error! HTTP status: ' + response.statusCode), null);
         }
       });
     }
 
     // step 3: get uploaded app data
-    function getUploadResult (uploadData) {
+    function getUploadResult (uploadData, retryCount = 0) {
+      if (retryCount >= 60) {
+        done(new Error(LOG_TAG + ' Build check timed out after 60 seconds.'), null);
+        return;
+      }
+
       const uploadResultRequest = https.request({
         hostname: service.host,
-        path: '/apiv2/app/buildInfo?_api_key=' + apiKey + '&buildKey=' + uploadData.data.key,
+        servername: service.hostname,
+        path: '/apiv2/app/buildInfo?' + querystring.stringify({
+          _api_key: apiKey,
+          buildKey: uploadData.data.key
+        }),
         method: 'POST',
         agent: false,
         headers: {
@@ -366,7 +441,8 @@ module.exports = function (apiKey) {
         }
       }, response => {
         if (response.statusCode !== 200) {
-          callback(new Error(LOG_TAG + ' Service is down.'), null);
+          response.resume();
+          done(new Error(LOG_TAG + ' Service is down.'), null);
           return;
         }
       
@@ -382,23 +458,27 @@ module.exports = function (apiKey) {
             const responseInfo = JSON.parse(responseText);
             if (responseInfo.code === 1247) {
               uploadOptions.log && console.log(LOG_TAG + ' Parsing App Data ... Please Wait ...');
-              setTimeout(() => getUploadResult(uploadData), 1000);
+              setTimeout(() => getUploadResult(uploadData, retryCount + 1), 1000);
               return;
             } else if (responseInfo.code) {
-              callback(new Error(LOG_TAG + 'Service down: ' + responseInfo.code + ': ' + responseInfo.message), null);
+              done(new Error(LOG_TAG + 'Service down: ' + responseInfo.code + ': ' + responseInfo.message), null);
+              return;
             }
-            callback(null, responseInfo);
+            done(null, responseInfo);
           } catch (error) {
-            callback(error, null);
+            done(error, null);
           }
         })
       })
 
-      uploadResultRequest.on('error', function() {
-        uploadResultRequest.destroy();
+      uploadResultRequest.on('error', function(error) {
+        done(error, null);
       });
 
-      uploadResultRequest.write(uploadTokenRequestData);
+      uploadResultRequest.setTimeout(30000, function () {
+        uploadResultRequest.destroy(new Error(LOG_TAG + ' Build info request timed out.'));
+      });
+
       uploadResultRequest.end();
     }
   }
