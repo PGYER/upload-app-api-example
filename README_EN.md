@@ -29,43 +29,6 @@ pgyer upload <your-ipa-or-apk-or-hap-file-path>
 
 `pgyer-cli` requires Node.js 18 or later and also supports listing, inspecting, and deleting apps.
 
-### Using the Shell Demo in This Repository
-
-This repository primarily demonstrates how to integrate with the new upload API in different languages. To inspect the upload flow, integrate it into an existing Shell/CI script, or avoid installing Node.js, run the Shell demo from the repository root:
-
-```bash
-chmod +x ./shell-demo/pgyer_upload.sh
-./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
-```
-
-The Shell demo is compatible with the login config used by [`pgyer-cli`](https://github.com/PGYER/pgyer-cli). If you have already run `pgyer auth login`, it reuses the API Key from `~/.config/pgyer/config.json`:
-
-```bash
-./shell-demo/pgyer_upload.sh <your-ipa-or-apk-or-hap-file-path>
-```
-
-If you do not use `pgyer-cli`, you can create a compatible config manually:
-
-```bash
-mkdir -p ~/.config/pgyer
-printf '%s\n' '{"apiKey":"<your-pgyer-api-key>"}' > ~/.config/pgyer/config.json
-chmod 600 ~/.config/pgyer/config.json
-```
-
-The lookup order is: `-k` > `PGYER_API_KEY` environment variable > `pgyer-cli` config > legacy Shell config. See the [Shell demo documentation](shell-demo/README.md) for details.
-
-If the app package path contains spaces, quote the entire path:
-
-```bash
-./shell-demo/pgyer_upload.sh "/path/with spaces/app.apk"
-```
-
-After a successful upload, the script prints the app name, version, and download page URL. To print the full JSON response, add `-j`:
-
-```bash
-./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> -j <your-app-file-path>
-```
-
 ## Examples
 
 Each language directory includes a runnable demo, parameter reference, and response example:

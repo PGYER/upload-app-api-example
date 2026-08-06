@@ -29,43 +29,6 @@ pgyer upload <your-ipa-or-apk-or-hap-file-path>
 
 `pgyer-cli` 需要 Node.js 18 或更高版本，并且还支持应用列表、详情和删除等管理功能。
 
-### 使用本仓库的 Shell 示例
-
-本仓库主要用于演示新版上传 API 的各语言接入方式。如果希望查看上传流程、集成到现有 Shell/CI 脚本，或者不方便安装 Node.js，可以在仓库根目录运行：
-
-```bash
-chmod +x ./shell-demo/pgyer_upload.sh
-./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
-```
-
-Shell 示例兼容 [`pgyer-cli`](https://github.com/PGYER/pgyer-cli) 的登录配置。如果已经执行过 `pgyer auth login`，可以直接复用 `~/.config/pgyer/config.json` 中的 API Key：
-
-```bash
-./shell-demo/pgyer_upload.sh <your-ipa-or-apk-or-hap-file-path>
-```
-
-如果没有使用 `pgyer-cli`，也可以手动创建兼容配置：
-
-```bash
-mkdir -p ~/.config/pgyer
-printf '%s\n' '{"apiKey":"<your-pgyer-api-key>"}' > ~/.config/pgyer/config.json
-chmod 600 ~/.config/pgyer/config.json
-```
-
-读取优先级为：`-k` > `PGYER_API_KEY` 环境变量 > `pgyer-cli` 配置文件 > 旧版 Shell 配置文件。详情请查看 [Shell 示例说明](shell-demo/README.md)。
-
-如果安装包路径中包含空格，请用引号包住完整路径，例如：
-
-```bash
-./shell-demo/pgyer_upload.sh "/path/with spaces/app.apk"
-```
-
-上传成功后会输出应用名称、版本号和下载页面 URL。如需完整 JSON 响应，可增加 `-j` 参数：
-
-```bash
-./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> -j <your-app-file-path>
-```
-
 ## 示例代码
 
 各语言目录中包含可运行 Demo、参数说明和返回结果示例：

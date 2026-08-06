@@ -1,6 +1,8 @@
 # shell 脚本使用说明
 
-在命令行中，上传 app 安装包到蒲公英平台(PGYER)，默认支持 Linux、Mac 平台。
+本示例演示如何在 Shell 中通过新版上传 API 将 App 安装包上传到蒲公英平台（PGYER），默认支持 Linux、macOS。
+
+如果只是希望日常通过命令行快速上传和管理应用，推荐使用官方 [`pgyer-cli`](https://github.com/PGYER/pgyer-cli)。本 Shell Demo 更适合学习上传流程、集成到现有 Shell/CI 脚本，或无法安装 Node.js 的场景。
 
 ## 使用说明
 
