@@ -4,8 +4,9 @@
 
 ## 使用说明
 
-为脚本赋予执行权限：
+先进入 `shell-demo` 目录，再为脚本赋予执行权限：
 
+    cd shell-demo
     chmod +x ./pgyer_upload.sh
 
 执行命令：
@@ -13,6 +14,51 @@
     ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
 
 直接执行脚本（不带参数）或使用 `-h`，均会显示完整帮助信息。
+
+### 复用 pgyer-cli 配置
+
+Shell Demo 兼容 [`pgyer-cli`](https://github.com/PGYER/pgyer-cli) 的配置文件 `~/.config/pgyer/config.json`。如果已经执行过：
+
+```bash
+pgyer auth login
+```
+
+Shell Demo 会直接复用其中的 `apiKey`，无需再次配置：
+
+```bash
+./pgyer_upload.sh ~/Downloads/app.apk
+```
+
+如果没有使用 `pgyer-cli`，也可以手动创建相同格式的配置文件：
+
+```bash
+mkdir -p ~/.config/pgyer
+printf '%s\n' '{"apiKey":"<your-pgyer-api-key>"}' > ~/.config/pgyer/config.json
+chmod 600 ~/.config/pgyer/config.json
+```
+
+如果当前位于仓库根目录，请使用完整的脚本相对路径：
+
+```bash
+./shell-demo/pgyer_upload.sh ~/Downloads/app.apk
+```
+
+安装包路径包含空格时，需要用引号包住完整路径：
+
+```bash
+./pgyer_upload.sh "/path/with spaces/app.apk"
+```
+
+API Key 的读取优先级为：
+
+1. 命令行 `-k`
+2. `PGYER_API_KEY` 环境变量
+3. `~/.config/pgyer/config.json` 中的 `apiKey`（与 `pgyer-cli` 共用）
+4. `~/.config/pgyer/config` 中的 `PGYER_API_KEY`（旧版 Shell 配置回退）
+
+也可以通过 `PGYER_CONFIG_FILE` 指定其他 JSON 或 `PGYER_API_KEY=value` 配置文件。
+
+配置文件仅由脚本解析，不会作为 Shell 脚本执行。请勿将包含真实 API Key 的配置文件提交到 Git。
 
 ## 输出
 
@@ -51,10 +97,11 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 
 ### 必需参数
 
-- `-k <api_key>` - 蒲公英 API Key（必填）
+- `<file>` - `.ipa`、`.apk` 或 `.hap` 安装包路径
 
 ### 可选参数
 
+- `-k <api_key>` - 蒲公英 API Key；未指定时依次读取环境变量和本地配置
 - `-t <buildInstallType>` - 安装方式：1=公开，2=密码，3=邀请
 - `-p <buildPassword>` - 安装密码（当 buildInstallType=2 时必填）
 - `-d <buildUpdateDescription>` - 版本更新描述

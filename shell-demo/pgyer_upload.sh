@@ -25,6 +25,12 @@ JSON_OUTPUT=0
 VERBOSE_MODE=0
 UPLOAD_MAX_RETRIES=3
 
+# API Key resolution order: -k option > environment variable > pgyer-cli config > legacy config
+api_key=""
+PGYER_CLI_CONFIG_FILE="${HOME}/.config/pgyer/config.json"
+LEGACY_CONFIG_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/pgyer/config"
+CONFIG_FILE="${PGYER_CONFIG_FILE:-${PGYER_CLI_CONFIG_FILE}}"
+
 # Colors
 if [ -t 1 ]; then
     COLOR_RESET='\033[0m'
@@ -173,6 +179,26 @@ print("" if value is None else value)' "$field"
     fi
 }
 
+extractJsonRootField() {
+    local field="$1"
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import json, sys
+field = sys.argv[1]
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+value = payload.get(field, "")
+print("" if value is None else value)' "$field"
+    elif command -v jq >/dev/null 2>&1; then
+        jq -r --arg field "$field" '.[$field] // empty' 2>/dev/null
+    else
+        sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+    fi
+}
+
 extractJsonParamField() {
     local field="$1"
 
@@ -230,20 +256,70 @@ shouldRetryUpload() {
 # ---------------------------------------------------------------
 # Parameter Processing Functions
 # ---------------------------------------------------------------
+loadApiKeyFromConfig() {
+    local config_file="$1"
+    local line
+    local value
+
+    [ -f "$config_file" ] || return 0
+
+    # pgyer-cli stores credentials as JSON in ~/.config/pgyer/config.json.
+    value="$(extractJsonRootField "apiKey" < "$config_file")"
+    if [ -n "$value" ]; then
+        api_key="$value"
+        return 0
+    fi
+
+    # Keep compatibility with the earlier PGYER_API_KEY=value config format.
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?PGYER_API_KEY[[:space:]]*=(.*)$ ]]; then
+            value="${BASH_REMATCH[2]}"
+            value="$(printf '%s' "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+            case "$value" in
+                \"*\") value="${value:1:${#value}-2}";;
+                \'*\') value="${value:1:${#value}-2}";;
+            esac
+
+            if [ -n "$value" ]; then
+                api_key="$value"
+                return 0
+            fi
+        fi
+    done < "$config_file"
+}
+
+resolveApiKey() {
+    # A command-line value has the highest priority.
+    [ -n "$api_key" ] && return 0
+
+    if [ -n "${PGYER_API_KEY:-}" ]; then
+        api_key="$PGYER_API_KEY"
+        return 0
+    fi
+
+    loadApiKeyFromConfig "$CONFIG_FILE"
+
+    if [ -z "$api_key" ] && [ "$LEGACY_CONFIG_FILE" != "$CONFIG_FILE" ]; then
+        loadApiKeyFromConfig "$LEGACY_CONFIG_FILE"
+    fi
+}
+
 printHelp() {
     local exit_code="${1:-0}"
 
     cat << EOF
-Usage: $0 -k <api_key> [OPTION]... file
+Usage: $0 [-k <api_key>] [OPTION]... file
 Upload iOS, Android or HarmonyOS app package file to PGYER.
 
 Examples: 
   $0 -k xxxxxxxxxxxxxxx /path/to/app.ipa     # Upload iOS app
   $0 -k xxxxxxxxxxxxxxx /path/to/app.apk     # Upload Android app  
   $0 -k xxxxxxxxxxxxxxx /path/to/app.hap     # Upload HarmonyOS app
+  $0 /path/to/app.apk                        # Use API key from environment or config
 
 Options:
-  -k <api_key>       (required) API key from PGYER
+  -k <api_key>       API key from PGYER (overrides environment and config)
   -t <type>          Build install type: 1=public, 2=password, 3=invite
   -p <password>      Build password (required if type=2)
   -d <desc>          Build update description
@@ -255,6 +331,12 @@ Options:
   -j                 Output full JSON response after completion
   -v                 Verbose mode, show detailed curl commands
   -h                 Show this help
+
+API key lookup order:
+  1. -k option
+  2. PGYER_API_KEY environment variable
+  3. apiKey in ${CONFIG_FILE} (compatible with pgyer-cli)
+  4. PGYER_API_KEY in ${LEGACY_CONFIG_FILE} (legacy format)
 
 Report bugs to: <https://github.com/PGYER/upload-app-api-example/issues>
 Project home page: <https://github.com/PGYER/upload-app-api-example>
@@ -560,6 +642,7 @@ main() {
     fi
 
     parseArguments "$@"
+    resolveApiKey
     validateInputs
     
     # Select an available API domain

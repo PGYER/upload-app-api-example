@@ -19,18 +19,39 @@ The new upload API uses a three-step flow: get an upload credential, upload the 
 
 ## Quick Start
 
-If you only need to upload from the command line or a CI workflow, start with the Shell demo:
+If you only need to upload from the command line or a CI workflow, run the Shell demo from the repository root:
 
 ```bash
-cd shell-demo
-chmod +x ./pgyer_upload.sh
-./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
+chmod +x ./shell-demo/pgyer_upload.sh
+./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
+```
+
+The Shell demo is compatible with the login config used by [`pgyer-cli`](https://github.com/PGYER/pgyer-cli). If you have already run `pgyer auth login`, it reuses the API Key from `~/.config/pgyer/config.json`:
+
+```bash
+./shell-demo/pgyer_upload.sh <your-ipa-or-apk-or-hap-file-path>
+```
+
+If you do not use `pgyer-cli`, you can create a compatible config manually:
+
+```bash
+mkdir -p ~/.config/pgyer
+printf '%s\n' '{"apiKey":"<your-pgyer-api-key>"}' > ~/.config/pgyer/config.json
+chmod 600 ~/.config/pgyer/config.json
+```
+
+The lookup order is: `-k` > `PGYER_API_KEY` environment variable > `pgyer-cli` config > legacy Shell config. See the [Shell demo documentation](shell-demo/README.md) for details.
+
+If the app package path contains spaces, quote the entire path:
+
+```bash
+./shell-demo/pgyer_upload.sh "/path/with spaces/app.apk"
 ```
 
 After a successful upload, the script prints the app name, version, and download page URL. To print the full JSON response, add `-j`:
 
 ```bash
-./pgyer_upload.sh -k <your-pgyer-api-key> -j <your-app-file-path>
+./shell-demo/pgyer_upload.sh -k <your-pgyer-api-key> -j <your-app-file-path>
 ```
 
 ## Examples
