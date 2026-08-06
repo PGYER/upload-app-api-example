@@ -12,9 +12,11 @@
 
     ./pgyer_upload.sh -k <your-pgyer-api-key> <your-ipa-or-apk-or-hap-file-path>
 
+直接执行脚本（不带参数）或使用 `-h`，均会显示完整帮助信息。
+
 ## 输出
 
-上传成功后，默认输出应用名称、版本号和下载页面 URL。如需输出完整 JSON 结果，请增加 `-j` 参数。
+上传过程中默认显示简洁的旋转指示器和已用时间；增加 `-P` 参数后，会显示包含百分比、速度和预计时间的详细进度条。上传成功后，默认输出应用名称、版本号和下载页面 URL。如需输出完整 JSON 结果，请增加 `-j` 参数。
 
 示例输出：
 ```
@@ -60,7 +62,7 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 - `-s <buildInstallStartDate>` - 安装开始日期，格式：yyyy-MM-dd
 - `-E <buildInstallEndDate>` - 安装结束日期，格式：yyyy-MM-dd
 - `-c <buildChannelShortcut>` - 渠道标识
-- `-P` - 显示上传进度条（默认关闭）
+- `-P` - 显示包含百分比、速度和预计时间的详细上传进度条
 - `-j` - 输出完整 JSON 响应结果
 - `-v` - 详细模式，显示脱敏后的 curl 命令和连接测试信息
 - `-h` - 显示帮助信息
@@ -72,7 +74,7 @@ $ ./pgyer_upload.sh -k *************** /path/to/your/app-package-file.apk
 ./pgyer_upload.sh -k <your-api-key> ~/Downloads/app.apk
 ```
 
-显示上传进度：
+显示详细上传进度：
 ```bash
 ./pgyer_upload.sh -k <your-api-key> -P ~/Downloads/app.apk
 ```

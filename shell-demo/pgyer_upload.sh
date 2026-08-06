@@ -231,6 +231,8 @@ shouldRetryUpload() {
 # Parameter Processing Functions
 # ---------------------------------------------------------------
 printHelp() {
+    local exit_code="${1:-0}"
+
     cat << EOF
 Usage: $0 -k <api_key> [OPTION]... file
 Upload iOS, Android or HarmonyOS app package file to PGYER.
@@ -249,7 +251,7 @@ Options:
   -s <start_date>    Build install start date (yyyy-MM-dd)
   -E <end_date>      Build install end date (yyyy-MM-dd)
   -c <shortcut>      Build channel shortcut
-  -P                 Show progress bar during upload
+  -P                 Show detailed progress bar during upload
   -j                 Output full JSON response after completion
   -v                 Verbose mode, show detailed curl commands
   -h                 Show this help
@@ -257,7 +259,7 @@ Options:
 Report bugs to: <https://github.com/PGYER/upload-app-api-example/issues>
 Project home page: <https://github.com/PGYER/upload-app-api-example>
 EOF
-    exit 1
+    exit "$exit_code"
 }
 
 parseArguments() {
@@ -274,7 +276,8 @@ parseArguments() {
             P) PROGRESS_ENABLE=1;;
             j) JSON_OUTPUT=1;;
             v) VERBOSE_MODE=1;;
-            ?) printHelp;;
+            h) printHelp;;
+            ?) printHelp 1;;
         esac
     done
 
@@ -359,6 +362,36 @@ getUploadToken() {
     log_success "Token obtained successfully"
 }
 
+runUploadWithIndicator() {
+    local output_file="$1"
+    local error_file="$2"
+    shift 2
+
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local spinner_index=0
+    local started_at=$SECONDS
+    local upload_pid
+    local upload_exit
+
+    "$@" >"${output_file}" 2>"${error_file}" &
+    upload_pid=$!
+
+    if [ $LOG_ENABLE -eq 1 ] && [ -t 2 ]; then
+        while kill -0 "${upload_pid}" 2>/dev/null; do
+            printf "\r  %s Uploading... (%ss)" "${spinner[$spinner_index]}" "$((SECONDS - started_at))" >&2
+            spinner_index=$(((spinner_index + 1) % ${#spinner[@]}))
+            sleep 0.2
+        done
+        printf "\r\033[K" >&2
+    else
+        log_info "Uploading..."
+    fi
+
+    wait "${upload_pid}"
+    upload_exit=$?
+    return "${upload_exit}"
+}
+
 uploadFile() {
     log_step "Step 2/3: Uploading file"
 
@@ -388,22 +421,26 @@ uploadFile() {
     local http_code=""
     local curl_exit=0
     local curl_error_file=$(mktemp "${TMPDIR:-/tmp}/pgyer-upload.XXXXXX")
+    local curl_output_file=$(mktemp "${TMPDIR:-/tmp}/pgyer-upload-status.XXXXXX")
 
     while [ $attempt -le $UPLOAD_MAX_RETRIES ]; do
         [ $UPLOAD_MAX_RETRIES -gt 1 ] && log_info "Upload attempt ${attempt}/${UPLOAD_MAX_RETRIES}"
 
         : > "${curl_error_file}"
+        : > "${curl_output_file}"
         log_verbose_command "${curl_args[@]}"
         if [ $PROGRESS_ENABLE -eq 1 ]; then
             http_code=$("${curl_args[@]}" 2> >(tee "${curl_error_file}" >&2))
+            curl_exit=$?
         else
-            http_code=$("${curl_args[@]}" 2>"${curl_error_file}")
+            runUploadWithIndicator "${curl_output_file}" "${curl_error_file}" "${curl_args[@]}"
+            curl_exit=$?
+            http_code=$(<"${curl_output_file}")
         fi
-        curl_exit=$?
         [ -z "$http_code" ] && http_code="000"
 
         if [ "$curl_exit" -eq 0 ] && [ "$http_code" = "204" ]; then
-            rm -f "${curl_error_file}"
+            rm -f "${curl_error_file}" "${curl_output_file}"
             log_success "File uploaded successfully"
             return 0
         fi
@@ -419,7 +456,7 @@ uploadFile() {
             log_warning "Retrying upload in ${delay}s..."
             sleep "$delay"
         else
-            rm -f "${curl_error_file}"
+            rm -f "${curl_error_file}" "${curl_output_file}"
             log_error "Upload failed after ${attempt} attempt(s)"
             log_error "Please check your network connection, proxy settings and file permissions"
             exit 1
@@ -518,6 +555,10 @@ checkResult() {
 # Main Function
 # ---------------------------------------------------------------
 main() {
+    if [ "$#" -eq 0 ]; then
+        printHelp
+    fi
+
     parseArguments "$@"
     validateInputs
     
