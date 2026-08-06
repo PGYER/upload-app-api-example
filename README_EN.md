@@ -19,7 +19,19 @@ The new upload API uses a three-step flow: get an upload credential, upload the 
 
 ## Quick Start
 
-If you only need to upload from the command line or a CI workflow, run the Shell demo from the repository root:
+If you only want to upload and manage apps from the command line, use the official [`pgyer-cli`](https://github.com/PGYER/pgyer-cli):
+
+```bash
+npm install -g @pgyer/cli
+pgyer auth login
+pgyer upload <your-ipa-or-apk-or-hap-file-path>
+```
+
+`pgyer-cli` requires Node.js 18 or later and also supports listing, inspecting, and deleting apps.
+
+### Using the Shell Demo in This Repository
+
+This repository primarily demonstrates how to integrate with the new upload API in different languages. To inspect the upload flow, integrate it into an existing Shell/CI script, or avoid installing Node.js, run the Shell demo from the repository root:
 
 ```bash
 chmod +x ./shell-demo/pgyer_upload.sh
@@ -60,7 +72,7 @@ Each language directory includes a runnable demo, parameter reference, and respo
 
 | Language | Directory | Notes |
 | --- | --- | --- |
-| Shell | [shell-demo](shell-demo) | Best for command-line usage, CI/CD, and one-line uploads |
+| Shell | [shell-demo](shell-demo) | Best for learning the upload flow or integrating with existing Shell/CI scripts |
 | Java | [java-demo](java-demo) | Maven project example |
 | Node.js | [nodejs-demo](nodejs-demo) | Supports both Promise and Callback styles |
 | PHP | [php-demo](php-demo) | PHP 7.4+ example |
@@ -92,6 +104,7 @@ For the full parameter list, see the README in each language directory or the [P
 
 ## Resources
 
+- [Official PGYER command-line tool: pgyer-cli](https://github.com/PGYER/pgyer-cli)
 - [Upload app with a single Shell command](shell-demo)
 - [Postman API call template](https://www.postman.com/pgyerdevs/workspace/pgyer-api)
 - [GitHub Actions workflow](https://github.com/PGYER/pgyer-upload-app-action)

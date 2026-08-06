@@ -19,7 +19,19 @@
 
 ## 快速开始
 
-如果只是希望在命令行或 CI 中快速上传，可以在仓库根目录直接使用 Shell 示例：
+如果只是希望通过命令行快速上传和管理应用，推荐使用官方 [`pgyer-cli`](https://github.com/PGYER/pgyer-cli)：
+
+```bash
+npm install -g @pgyer/cli
+pgyer auth login
+pgyer upload <your-ipa-or-apk-or-hap-file-path>
+```
+
+`pgyer-cli` 需要 Node.js 18 或更高版本，并且还支持应用列表、详情和删除等管理功能。
+
+### 使用本仓库的 Shell 示例
+
+本仓库主要用于演示新版上传 API 的各语言接入方式。如果希望查看上传流程、集成到现有 Shell/CI 脚本，或者不方便安装 Node.js，可以在仓库根目录运行：
 
 ```bash
 chmod +x ./shell-demo/pgyer_upload.sh
@@ -60,7 +72,7 @@ chmod 600 ~/.config/pgyer/config.json
 
 | 语言 | 目录 | 说明 |
 | --- | --- | --- |
-| Shell | [shell-demo](shell-demo) | 适合命令行、CI/CD 和一行命令上传 |
+| Shell | [shell-demo](shell-demo) | 适合学习上传流程或集成到现有 Shell/CI 脚本 |
 | Java | [java-demo](java-demo) | Maven 项目示例 |
 | Node.js | [nodejs-demo](nodejs-demo) | 支持 Promise 和 Callback 调用方式 |
 | PHP | [php-demo](php-demo) | PHP 7.4+ 示例 |
@@ -92,6 +104,7 @@ chmod 600 ~/.config/pgyer/config.json
 
 ## 相关资源
 
+- [蒲公英官方命令行工具 pgyer-cli](https://github.com/PGYER/pgyer-cli)
 - [Shell 一行命令上传脚本](shell-demo)
 - [Postman API 调用模板](https://www.postman.com/pgyerdevs/workspace/pgyer-api)
 - [GitHub Actions 工作流](https://github.com/PGYER/pgyer-upload-app-action)
