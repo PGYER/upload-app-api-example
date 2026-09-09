@@ -38,10 +38,10 @@ public class PGYERAppUploader {
     private static final int BUILD_INFO_MAX_ATTEMPTS = 60;
     private static final int BUILD_INFO_POLL_INTERVAL_MS = 1000;
     private static final Pattern FORM_SECRET_PATTERN = Pattern.compile(
-            "((?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)=)([^&\\s]+)",
+            "((?:_api_key|key|signature|policy|callback|OSSAccessKeyId|x-oss-security-token|x-cos-security-token|buildPassword|buildKey)=)([^&\\s]+)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern JSON_SECRET_PATTERN = Pattern.compile(
-            "(\"(?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)\"\\s*:\\s*\")([^\"]+)(\")",
+            "(\"(?:_api_key|key|signature|policy|callback|OSSAccessKeyId|x-oss-security-token|x-cos-security-token|buildPassword|buildKey)\"\\s*:\\s*\")([^\"]+)(\")",
             Pattern.CASE_INSENSITIVE);
 
     private final String apiKey;
@@ -147,6 +147,8 @@ public class PGYERAppUploader {
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("_api_key", apiKey);
         params.put("buildType", buildType);
+        params.put("protocol", "2");
+        params.put("uploadFileName", file.getName());
 
         String[] otherParams = {
                 "oversea",
@@ -167,7 +169,7 @@ public class PGYERAppUploader {
 
         log("get upload token with params: " + formatParams(params));
 
-        String res = sendPost("/apiv2/app/getCOSToken", params);
+        String res = sendPost("/apiv2/app/getUploadToken", params);
         log("get upload token with response: " + res);
 
         JsonObject responseJson = gson.fromJson(res, JsonObject.class);
@@ -188,12 +190,14 @@ public class PGYERAppUploader {
 
         log("upload app to bucket with params: " + formatJsonObject(cosParams));
 
-        UploadResult uploadResult = uploadFile(file, endpoint, cosParams);
-        if (uploadResult.statusCode != HttpStatus.SC_NO_CONTENT) {
-            throw new Exception("Failed to upload app, http code: " + uploadResult.statusCode +
-                    ", response: " + uploadResult.body);
+        try {
+            UploadResult uploadResult = uploadFile(file, endpoint, cosParams);
+            if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+                log("Upload result uncertain; checking buildInfo.");
+            }
+        } catch (IOException error) {
+            log("Upload connection failed; checking buildInfo before any new upload.");
         }
-        log("upload success");
 
         Map<String, Object> buildInfoParams = new HashMap<String, Object>();
         buildInfoParams.put("_api_key", apiKey);
@@ -216,6 +220,9 @@ public class PGYERAppUploader {
                 return gson.fromJson(buildInfo.get("data"), Map.class);
             }
 
+            if (code != 1246 && code != 1247) {
+                throw new IOException("Publication failed: " + code);
+            }
             Thread.sleep(BUILD_INFO_POLL_INTERVAL_MS);
         }
 
@@ -297,7 +304,6 @@ public class PGYERAppUploader {
             }
         }
 
-        builder.addTextBody("x-cos-meta-file-name", file.getName(), ContentType.TEXT_PLAIN);
         builder.addBinaryBody("file", file, ContentType.APPLICATION_OCTET_STREAM, file.getName());
 
         httpPost.setEntity(builder.build());
@@ -437,6 +443,10 @@ public class PGYERAppUploader {
         return "_api_key".equalsIgnoreCase(key)
                 || "key".equalsIgnoreCase(key)
                 || "signature".equalsIgnoreCase(key)
+                || "policy".equalsIgnoreCase(key)
+                || "callback".equalsIgnoreCase(key)
+                || "OSSAccessKeyId".equalsIgnoreCase(key)
+                || "x-oss-security-token".equalsIgnoreCase(key)
                 || "x-cos-security-token".equalsIgnoreCase(key)
                 || "buildPassword".equalsIgnoreCase(key)
                 || "buildKey".equalsIgnoreCase(key);

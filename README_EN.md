@@ -1,3 +1,5 @@
+> This branch uses unified uploads (protocol=2) and requires the matching server release. See [MIGRATION.md](MIGRATION.md).
+
 # PGYER API Upload App Code Examples
 
 ## Languages

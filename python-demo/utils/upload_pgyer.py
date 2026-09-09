@@ -19,7 +19,7 @@ REQUEST_TIMEOUT = 30
 UPLOAD_TIMEOUT = 120
 BUILD_POLL_INTERVAL = 1
 BUILD_MAX_ATTEMPTS = 60
-UPLOAD_MAX_RETRIES = 3
+UPLOAD_MAX_RETRIES = 1
 
 host = None
 hostname = None
@@ -148,6 +148,7 @@ def _get_cos_token(
     channel_shortcut="",
 ):
     payload = {
+        "protocol": "2",
         "_api_key": api_key,
         "buildType": build_type,
         "buildInstallType": install_type,
@@ -162,7 +163,7 @@ def _get_cos_token(
     if oversea:
         payload["oversea"] = oversea
 
-    response = _api_post("/apiv2/app/getCOSToken", data=payload)
+    response = _api_post("/apiv2/app/getUploadToken", data=payload)
     if response.status_code != requests.codes.ok:
         raise RuntimeError(f"获取上传凭证失败，HTTP 状态码: {response.status_code}")
 
@@ -222,7 +223,7 @@ def _upload_file(upload_url, token_result, file_path):
                         timeout=UPLOAD_TIMEOUT,
                     )
 
-            if response.status_code == 204:
+            if 200 <= response.status_code < 300:
                 print("\n✅ 文件上传成功")
                 return
 
@@ -332,7 +333,10 @@ def upload_to_pgyer(
             channel_shortcut=channel_shortcut,
         )
 
-        _upload_file(token_result["data"]["endpoint"], token_result, path)
+        try:
+            _upload_file(token_result["data"]["endpoint"], token_result, path)
+        except Exception:
+            print("Upload result uncertain; checking buildInfo before any new upload.")
 
         print("⏳ 正在处理应用包，请稍等...")
         result = _get_build_info(api_key=api_key, token_result=token_result)
