@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="PollingRegression.cs" />
+    <Compile Include="../../csharp-demo/PGYERAppUploader.cs" />
+    <Compile Include="../../csharp-demo/Request/*.cs" />
+    <Compile Include="../../csharp-demo/Response/*.cs" />
+  </ItemGroup>
+</Project>

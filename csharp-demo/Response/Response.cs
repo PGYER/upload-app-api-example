@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 
 class Response<T>
 {
+    [JsonRequired]
     [JsonPropertyName("code")]
     public int Code { get; set; }
     [JsonPropertyName("message")]

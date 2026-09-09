@@ -1,0 +1,207 @@
+[
+  {
+    "name": "success",
+    "responses": [
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "fixture",
+          "buildName": "Example"
+        }
+      }
+    ],
+    "requests": 1
+  },
+  {
+    "name": "both_processing_codes_then_success",
+    "responses": [
+      {
+        "code": 1246,
+        "message": "processing"
+      },
+      {
+        "code": 1247,
+        "message": "processing"
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "fixture"
+        }
+      }
+    ],
+    "requests": 3
+  },
+  {
+    "name": "terminal_1249",
+    "responses": [
+      {
+        "code": 1249,
+        "message": "The channel shortcut URL is invalid"
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "1249",
+      "The channel shortcut URL is invalid"
+    ]
+  },
+  {
+    "name": "terminal_1216",
+    "responses": [
+      {
+        "code": 1216,
+        "message": "App failed to publish."
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "1216",
+      "App failed to publish."
+    ]
+  },
+  {
+    "name": "terminal_1081",
+    "responses": [
+      {
+        "code": 1081,
+        "message": "Permission denied"
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "1081",
+      "Permission denied"
+    ]
+  },
+  {
+    "name": "terminal_1244",
+    "responses": [
+      {
+        "code": 1244,
+        "message": "The App is not in queue"
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "1244",
+      "The App is not in queue"
+    ]
+  },
+  {
+    "name": "terminal_9999",
+    "responses": [
+      {
+        "code": 9999,
+        "message": "错误详情：包名缺失 \"Bundle Identifier\""
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "9999",
+      "错误详情：包名缺失 \"Bundle Identifier\""
+    ]
+  },
+  {
+    "name": "processing_then_terminal",
+    "responses": [
+      {
+        "code": 1247
+      },
+      {
+        "code": 1249,
+        "message": "Invalid package"
+      },
+      {
+        "code": 0,
+        "data": {
+          "buildKey": "must-not-fetch"
+        }
+      }
+    ],
+    "requests": 2,
+    "errorContains": [
+      "1249",
+      "Invalid package"
+    ]
+  },
+  {
+    "name": "terminal_missing_message",
+    "responses": [
+      {
+        "code": 1249
+      }
+    ],
+    "requests": 1,
+    "errorContains": [
+      "1249",
+      "Unknown error"
+    ]
+  },
+  {
+    "name": "malformed_json",
+    "responses": [
+      "<html>Bad gateway</html>"
+    ],
+    "requests": 1,
+    "errorContains": []
+  },
+  {
+    "name": "missing_code",
+    "responses": [
+      {
+        "data": {
+          "buildKey": "not-success"
+        }
+      }
+    ],
+    "requests": 1,
+    "errorContains": []
+  },
+  {
+    "name": "null_response",
+    "responses": [
+      null
+    ],
+    "requests": 1,
+    "errorContains": []
+  },
+  {
+    "name": "transport_failure",
+    "transportError": true,
+    "responses": [],
+    "requests": 1,
+    "errorContains": [],
+    "shellRequests": 60
+  }
+]

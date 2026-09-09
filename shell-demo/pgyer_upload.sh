@@ -575,10 +575,14 @@ checkResult() {
         local curl_exit=$?
         final_result="${result}"
 
-        if [ "$curl_exit" -ne 0 ]; then
-            code=""
-        else
+        code=""
+        if [ "$curl_exit" -eq 0 ]; then
             code=$(printf '%s' "${result}" | extractJsonCode)
+        fi
+        if [ "$curl_exit" -eq 0 ] && [ -z "$code" ]; then
+            [ $showed_progress -eq 1 ] && printf "\r\033[K" >&2
+            log_error "Invalid build info response: missing code"
+            exit 1
         fi
         
         if [ "$code" = "0" ]; then
@@ -603,17 +607,25 @@ checkResult() {
             fi
             echo ""
             break
-        else
+        elif [ "$curl_exit" -ne 0 ] || [ "$code" = "1246" ] || [ "$code" = "1247" ]; then
             if [ $VERBOSE_MODE -eq 1 ]; then
-                log_info "Processing... (${i}s)"
+                log_info "Processing... (attempt ${i}/${max_retries})"
             else
                 # Show progress with spinner
                 local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
                 local idx=$((i % 10))
                 showed_progress=1
-                printf "\r  ${spinner[$idx]} Processing... (${i}s)" >&2
+                printf "\r  ${spinner[$idx]} Processing... (attempt ${i}/${max_retries})" >&2
             fi
-            sleep 1
+            if [ "$i" -lt "$max_retries" ]; then
+                sleep 1
+            fi
+        else
+            [ $showed_progress -eq 1 ] && printf "\r\033[K" >&2
+            local message
+            message=$(printf '%s' "${result}" | extractJsonRootField "message")
+            log_error "Build processing failed (code ${code}): ${message:-Unknown error}"
+            exit 1
         fi
     done
     
@@ -654,4 +666,6 @@ main() {
 }
 
 # Execute main function
-main "$@"
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi

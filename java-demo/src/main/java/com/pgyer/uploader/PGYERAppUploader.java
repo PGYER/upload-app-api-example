@@ -201,25 +201,42 @@ public class PGYERAppUploader {
         String url = "/apiv2/app/buildInfo?" + buildQueryString(buildInfoParams);
         log("get build info from: " + url);
 
+        return pollBuildInfo(() -> sendGet(url), this::log);
+    }
+
+    // Keep polling independent of the transport so response handling can be checked offline.
+    static Map<String, Object> pollBuildInfo(java.util.concurrent.Callable<String> fetchBuildInfo,
+                                             java.util.function.Consumer<String> logger) throws Exception {
+        Gson gson = new Gson();
         for (int i = 1; i <= BUILD_INFO_MAX_ATTEMPTS; i++) {
-            log("[" + i + "] get app build info...");
-            String resp = sendGet(url);
+            logger.accept("[" + i + "] get app build info...");
+            String resp = fetchBuildInfo.call();
             JsonObject buildInfo = gson.fromJson(resp, JsonObject.class);
-            if (buildInfo == null || !buildInfo.has("code")) {
-                Thread.sleep(BUILD_INFO_POLL_INTERVAL_MS);
-                continue;
+            if (buildInfo == null || !buildInfo.has("code") || buildInfo.get("code").isJsonNull()) {
+                throw new Exception("Invalid build info response: missing code.");
             }
 
             int code = buildInfo.get("code").getAsInt();
-            if (code == 0 && buildInfo.has("data") && !buildInfo.get("data").isJsonNull()) {
-                log(resp);
-                return gson.fromJson(buildInfo.get("data"), Map.class);
+            if (code == 1246 || code == 1247) {
+                if (i < BUILD_INFO_MAX_ATTEMPTS) {
+                    Thread.sleep(BUILD_INFO_POLL_INTERVAL_MS);
+                }
+                continue;
+            }
+            if (code != 0) {
+                String message = buildInfo.has("message") && !buildInfo.get("message").isJsonNull()
+                        ? buildInfo.get("message").getAsString() : "Unknown error";
+                throw new Exception("Build processing failed (code " + code + "): " + message);
+            }
+            if (!buildInfo.has("data") || !buildInfo.get("data").isJsonObject()) {
+                throw new Exception("Invalid build info response: missing build data.");
             }
 
-            Thread.sleep(BUILD_INFO_POLL_INTERVAL_MS);
+            logger.accept(resp);
+            return gson.fromJson(buildInfo.get("data"), Map.class);
         }
 
-        throw new TimeoutException("Build processing timed out after " + BUILD_INFO_MAX_ATTEMPTS + " seconds.");
+        throw new TimeoutException("Build processing timed out after " + BUILD_INFO_MAX_ATTEMPTS + " attempts.");
     }
 
     private String sendPost(String url, Map<String, Object> params) throws IOException {
