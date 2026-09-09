@@ -1,11 +1,25 @@
+
+
 using System.Text.Json.Serialization;
 
-// The legacy class name is retained for callers; parameters are storage-neutral.
-public class CosTokenResponse {
+
+public class CosTokenParam{
+    [JsonPropertyName("signature")]
+    public string Signature {get; set;}
+    [JsonPropertyName("x-cos-security-token")]
+    public string SecurityToken {get; set;}
     [JsonPropertyName("key")]
-    public string Key { get; set; }
+    public string Key {get; set;}
+}
+
+public class CosTokenResponse{
+
+    [JsonPropertyName("key")]
+    public string Key {get; set;}
+
     [JsonPropertyName("endpoint")]
-    public string Endpoint { get; set; }
+    public string Endpoint{get; set;}
+
     [JsonPropertyName("params")]
-    public Dictionary<string, string> Param { get; set; }
+    public CosTokenParam Param {get; set;}
 }

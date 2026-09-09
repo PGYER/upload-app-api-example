@@ -59,7 +59,6 @@ class PGYERAppUploader
         {
             ApiKey = this._apikey,
             BuildType = buildType,
-            UploadFileName = file.Name,
             Oversea = option.Oversea ?? "",
             BuildInstallType = option.BuildInstallType ?? "",
             BuildPassword = option.BuildPassword ?? "",
@@ -77,17 +76,20 @@ class PGYERAppUploader
 
         UploadAppRequest uploadAppRequest = new UploadAppRequest
         {
-            FormFields = cosTokenResponse.Data.Param,
+            Key = cosTokenResponse.Data.Param.Key,
+            Signature = cosTokenResponse.Data.Param.Signature,
+            SecurityToken = cosTokenResponse.Data.Param.SecurityToken,
+            Filename = file.Name,
             Endpoint = cosTokenResponse.Data.Endpoint,
             File = file
         };
-        try { this.UploadApp(uploadAppRequest); }
-        catch (Exception) { this.Record("Upload result uncertain; checking buildInfo before any new upload."); }
+        this.UploadApp(uploadAppRequest);
+        this.Record("upload app to bucket successful.");
 
         BuildInfoRequest buildInfoRequest = new BuildInfoRequest
         {
             ApiKey = this._apikey,
-            BuildKey = cosTokenResponse.Data.Key
+            BuildKey = cosTokenResponse.Data.Param.Key
         };
         for (var time = 1; time <= BuildInfoMaxAttempts; time++)
         {
@@ -95,8 +97,6 @@ class PGYERAppUploader
             Response<BuildInfoResponse> buildInfoResponse = this.BuildInfo(buildInfoRequest);
             if (buildInfoResponse.Code != 0 || buildInfoResponse.Data == null)
             {
-                if (buildInfoResponse.Code != 1246 && buildInfoResponse.Code != 1247)
-                    throw new Exception($"Publication failed: {buildInfoResponse.Code} {buildInfoResponse.Message}");
                 Thread.Sleep(BuildInfoPollIntervalMs);
                 continue;
             }
@@ -116,10 +116,10 @@ class PGYERAppUploader
 
         this.Record($"get upload token with params: {FormatParameters(parameters)}");
 
-        HttpResult response = this.Post("/apiv2/app/getUploadToken", content);
+        HttpResult response = this.Post("/apiv2/app/getCOSToken", content);
 
         if (!response.IsSuccessStatusCode)
-            throw new Exception($"POST /apiv2/app/getUploadToken {response.StatusCode} failed: {response.Body}");
+            throw new Exception($"POST /apiv2/app/getCOSToken {response.StatusCode} failed: {response.Body}");
 
         this.Record($"get upload token with response: {response.Body}");
 
@@ -135,8 +135,7 @@ class PGYERAppUploader
         if (request.File == null || !request.File.Exists)
             throw new FileNotFoundException("Upload file does not exist.", request.File?.FullName);
 
-        Dictionary<string, string> parameters = request.FormFields;
-        if (parameters == null || parameters.Count == 0) throw new Exception("Missing upload form fields.");
+        Dictionary<string, string> parameters = request.Serialize();
         string boundary = string.Format("---------------------{0}", DateTime.Now.Ticks.ToString("x"));
 
         using MultipartFormDataContent multipart = new MultipartFormDataContent(boundary);
@@ -158,7 +157,7 @@ class PGYERAppUploader
         this.Record($"upload app to bucket with params: {FormatParameters(parameters)}&file={request.File.FullName}");
 
         HttpResult response = this.Post(request.Endpoint, multipart, timeout: 120);
-        if (!response.IsSuccessStatusCode)
+        if (response.StatusCode != HttpStatusCode.NoContent)
             throw new Exception($"Failed upload app to bucket: HTTP {(int)response.StatusCode}, {response.Body}");
     }
 
@@ -350,10 +349,6 @@ class PGYERAppUploader
         return key.Equals("_api_key", StringComparison.OrdinalIgnoreCase)
             || key.Equals("key", StringComparison.OrdinalIgnoreCase)
             || key.Equals("signature", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("policy", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("callback", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("OSSAccessKeyId", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("x-oss-security-token", StringComparison.OrdinalIgnoreCase)
             || key.Equals("x-cos-security-token", StringComparison.OrdinalIgnoreCase)
             || key.Equals("buildPassword", StringComparison.OrdinalIgnoreCase)
             || key.Equals("buildKey", StringComparison.OrdinalIgnoreCase);
@@ -363,13 +358,13 @@ class PGYERAppUploader
     {
         string redacted = Regex.Replace(
             text,
-            "((?:_api_key|key|signature|policy|callback|OSSAccessKeyId|x-oss-security-token|x-cos-security-token|buildPassword|buildKey)=)([^&\\s]+)",
+            "((?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)=)([^&\\s]+)",
             "$1***",
             RegexOptions.IgnoreCase);
 
         return Regex.Replace(
             redacted,
-            "(\"(?:_api_key|key|signature|policy|callback|OSSAccessKeyId|x-oss-security-token|x-cos-security-token|buildPassword|buildKey)\"\\s*:\\s*\")([^\"]+)(\")",
+            "(\"(?:_api_key|key|signature|x-cos-security-token|buildPassword|buildKey)\"\\s*:\\s*\")([^\"]+)(\")",
             "$1***$3",
             RegexOptions.IgnoreCase);
     }

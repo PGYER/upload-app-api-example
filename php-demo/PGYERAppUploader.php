@@ -78,7 +78,7 @@ class PGYERAppUploader
     private $connectTimeout = 30;
     private $requestTimeout = 120;
     private $uploadTimeout = 0;
-    private $uploadMaxRetries = 1;
+    private $uploadMaxRetries = 3;
     private $dnsService = 'https://dns.alidns.com/resolve';
     private $serviceHosts = [
         'api.pgyer.com',
@@ -136,11 +136,10 @@ class PGYERAppUploader
 
         $params = [
             "_api_key" => $this->apikey,
-            "buildType" => $buildType,
-            "uploadFileName" => basename($filePath)
+            "buildType" => $buildType
         ];
 
-        $otherParams = ["oversea", "buildDescription", "buildInstallType", "buildPassword", "buildUpdateDescription", "buildInstallDate", "buildInstallStartDate", "buildInstallEndDate", "buildChannelShortcut"];
+        $otherParams = ["buildInstallType", "buildPassword", "buildUpdateDescription", "buildInstallDate", "buildInstallStartDate", "buildInstallEndDate", "buildChannelShortcut"];
         foreach ($otherParams as $key) {
             if (isset($config[$key])) {
                 $params[$key] = $config[$key];
@@ -149,7 +148,7 @@ class PGYERAppUploader
 
         $this->log("get upload token with params: " . json_encode($this->redactSensitiveData($params), JSON_UNESCAPED_UNICODE));
 
-        $res = $this->sendRequest("/apiv2/app/getUploadToken", $params);
+        $res = $this->sendRequest("/apiv2/app/getCOSToken", $params);
         $res = json_decode($res, true);
         if (!is_array($res)) {
             throw new Exception('Failed to parse upload token response: ' . json_last_error_msg());
@@ -167,13 +166,10 @@ class PGYERAppUploader
 
         // step 2: upload app to bucket
         $params = $res['data']['params'];
+        $params['x-cos-meta-file-name'] = pathinfo($filePath, PATHINFO_BASENAME);
         $params['file'] = new CURLFile($filePath);
         $this->log("upload app to bucket with params: " . json_encode($this->redactSensitiveData($params), JSON_UNESCAPED_UNICODE));
-        try {
-            $this->uploadToBucket($res['data']['endpoint'], $params);
-        } catch (Exception $e) {
-            $this->log('Upload result uncertain; checking buildInfo before any new upload.');
-        }
+        $this->uploadToBucket($res['data']['endpoint'], $params);
 
         // step 3: get uploaded app data
         $url = "/apiv2/app/buildInfo?" . http_build_query([
@@ -192,9 +188,6 @@ class PGYERAppUploader
             }
 
             if (($res['code'] ?? -1) != 0) {
-                if (!in_array((int) ($res['code'] ?? -1), [1246, 1247], true)) {
-                    throw new Exception('Publication failed: ' . ($res['message'] ?? 'unknown error'));
-                }
                 sleep(1);
                 $this->log("[$i] get app build info...");
                 continue;
@@ -253,7 +246,7 @@ class PGYERAppUploader
             $httpcode = 0;
             try {
                 $result = $this->sendRequest($endpoint, $params, $httpcode, $this->uploadTimeout);
-                if ($httpcode >= 200 && $httpcode < 300) {
+                if ($httpcode == 204) {
                     $this->log("upload success");
                     return;
                 }
@@ -309,7 +302,7 @@ class PGYERAppUploader
             '_api_key',
             'buildPassword',
             'key',
-            'signature', 'Signature', 'policy', 'callback', 'OSSAccessKeyId', 'x-oss-security-token',
+            'signature',
             'x-cos-security-token',
             'buildKey',
         ];

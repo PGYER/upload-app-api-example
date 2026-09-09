@@ -1,5 +1,3 @@
-> This branch uses unified getUploadToken uploads (no protocol parameter) and requires the matching server release. See [MIGRATION.md](MIGRATION.md).
-
 # PGYER API Upload App Code Examples
 
 ## Languages

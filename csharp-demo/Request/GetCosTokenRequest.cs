@@ -3,8 +3,6 @@
 
 class CosTokenRequest
 {
-    [FormProperty("uploadFileName", false)]
-    public string UploadFileName { get; set; }
 
     [FormProperty("_api_key", true)]
     public string ApiKey { get; set; }

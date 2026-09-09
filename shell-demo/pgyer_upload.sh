@@ -23,7 +23,7 @@ LOG_ENABLE=1
 PROGRESS_ENABLE=0
 JSON_OUTPUT=0
 VERBOSE_MODE=0
-UPLOAD_MAX_RETRIES=1
+UPLOAD_MAX_RETRIES=3
 
 # API Key resolution order: -k option > environment variable > pgyer-cli config > legacy config
 api_key=""
@@ -90,7 +90,7 @@ log_verbose_command() {
         for arg in "$@"; do
             safe_arg="$arg"
             case "$safe_arg" in
-                _api_key=*|key=*|signature=*|Signature=*|policy=*|callback=*|OSSAccessKeyId=*|x-oss-security-token=*|x-cos-security-token=*|buildPassword=*|buildKey=*)
+                _api_key=*|key=*|signature=*|x-cos-security-token=*|buildPassword=*|buildKey=*)
                     safe_arg="${safe_arg%%=*}=***"
                     ;;
             esac
@@ -102,7 +102,7 @@ log_verbose_command() {
 
 testDomainConnectivity() {
     local domain="$1"
-    local test_url="https://${domain}/apiv2/app/getUploadToken"
+    local test_url="https://${domain}/apiv2/app/getCOSToken"
     
     log_verbose "Testing connectivity to ${domain}..."
     
@@ -216,16 +216,6 @@ print("" if value is None else value)' "$field"
         jq -r --arg field "$field" '.data.params[$field] // empty'
     else
         sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p"
-    fi
-}
-
-extractUploadFields() {
-    if command -v python3 >/dev/null 2>&1; then
-        python3 -c 'import json, sys
-for key, value in json.load(sys.stdin)["data"]["params"].items():
-    sys.stdout.buffer.write((key + "=" + str(value)).encode("utf-8") + bytes([0]))'
-    else
-        jq -j '.data.params | to_entries[] | .key + "=" + (.value|tostring) + "\u0000"'
     fi
 }
 
@@ -429,8 +419,7 @@ getUploadToken() {
     [ -n "$buildInstallStartDate" ]  && curl_args+=(--form-string "buildInstallStartDate=${buildInstallStartDate}")
     [ -n "$buildInstallEndDate" ]    && curl_args+=(--form-string "buildInstallEndDate=${buildInstallEndDate}")
     [ -n "$buildChannelShortcut" ]   && curl_args+=(--form-string "buildChannelShortcut=${buildChannelShortcut}")
-    curl_args+=(--form-string "uploadFileName=$(basename "$file")")
-    curl_args+=("${API_BASE_URL}/app/getUploadToken")
+    curl_args+=("${API_BASE_URL}/app/getCOSToken")
 
     log_verbose_command "${curl_args[@]}"
     result=$("${curl_args[@]}")
@@ -444,15 +433,14 @@ getUploadToken() {
     endpoint=$(printf '%s' "${result}" | extractJsonDataField "endpoint")
     build_key=$(printf '%s' "${result}" | extractJsonDataField "key")
     upload_key=$(printf '%s' "${result}" | extractJsonParamField "key")
-    if [ -z "$build_key" ] || [ -z "$upload_key" ] || [ -z "$endpoint" ]; then
+    signature=$(printf '%s' "${result}" | extractJsonParamField "signature")
+    x_cos_security_token=$(printf '%s' "${result}" | extractJsonParamField "x-cos-security-token")
+
+    if [ -z "$build_key" ] || [ -z "$upload_key" ] || [ -z "$signature" ] || [ -z "$x_cos_security_token" ] || [ -z "$endpoint" ]; then
         log_error "Failed to get upload token"
         exit 1
     fi
-    if ! command -v python3 >/dev/null && ! command -v jq >/dev/null; then
-        log_error "Unified uploads require python3 or jq to read all form fields."
-        exit 1
-    fi
-    upload_token_json="$result"
+    
     log_success "Token obtained successfully"
 }
 
@@ -503,13 +491,14 @@ uploadFile() {
         ${progress_option}
         --connect-timeout 30
         --max-time 1800
+        --form-string "key=${upload_key}"
+        --form-string "signature=${signature}"
+        --form-string "x-cos-security-token=${x_cos_security_token}"
+        --form-string "x-cos-meta-file-name=${file_name}"
+        -F "file=@${file}"
+        "${endpoint}"
     )
-    local field
-    while IFS= read -r -d '' field; do
-        curl_args+=(--form-string "$field")
-    done < <(printf '%s' "$upload_token_json" | extractUploadFields)
-    curl_args+=(-F "file=@$file" "$endpoint")
-
+    
     local attempt=1
     local http_code=""
     local curl_exit=0
@@ -532,15 +521,30 @@ uploadFile() {
         fi
         [ -z "$http_code" ] && http_code="000"
 
-        if [ "$curl_exit" -eq 0 ] && [[ "$http_code" = 2?? ]]; then
+        if [ "$curl_exit" -eq 0 ] && [ "$http_code" = "204" ]; then
             rm -f "${curl_error_file}" "${curl_output_file}"
             log_success "File uploaded successfully"
             return 0
         fi
 
-        rm -f "$curl_error_file" "$curl_output_file"
-        log_warning "Upload result uncertain; checking buildInfo before any new upload."
-        return 0
+        log_error "Upload attempt ${attempt} failed (curl exit: ${curl_exit}, HTTP status: ${http_code})"
+
+        if [ $PROGRESS_ENABLE -eq 0 ] && [ -s "${curl_error_file}" ]; then
+            sed 's/^/  /' "${curl_error_file}" >&2
+        fi
+
+        if [ $attempt -lt $UPLOAD_MAX_RETRIES ] && shouldRetryUpload "$curl_exit" "$http_code"; then
+            local delay=$((attempt * 2))
+            log_warning "Retrying upload in ${delay}s..."
+            sleep "$delay"
+        else
+            rm -f "${curl_error_file}" "${curl_output_file}"
+            log_error "Upload failed after ${attempt} attempt(s)"
+            log_error "Please check your network connection, proxy settings and file permissions"
+            exit 1
+        fi
+
+        attempt=$((attempt + 1))
     done
 }
 
@@ -577,11 +581,6 @@ checkResult() {
             code=$(printf '%s' "${result}" | extractJsonCode)
         fi
         
-        if [ -n "$code" ] && [ "$code" != "0" ] && [ "$code" != "1246" ] && [ "$code" != "1247" ]; then
-            log_error "Publication failed (code: $code)"
-            exit 1
-        fi
-
         if [ "$code" = "0" ]; then
             # Extract app information
             shortcut_url=$(printf '%s' "${result}" | extractJsonDataField "buildShortcutUrl")
@@ -655,6 +654,4 @@ main() {
 }
 
 # Execute main function
-if [[ "$0" == "${BASH_SOURCE[0]}" ]]; then
-    main "$@"
-fi
+main "$@"

@@ -310,8 +310,6 @@ module.exports = function (apiKey) {
     };
 
     [
-      'oversea',
-      'buildDescription',
       'buildInstallType',
       'buildPassword',
       'buildUpdateDescription',
@@ -325,7 +323,6 @@ module.exports = function (apiKey) {
       }
     });
 
-    tokenParams.uploadFileName = path.basename(uploadOptions.filePath);
     const uploadTokenRequestData = querystring.stringify(tokenParams);
     
     uploadOptions.log && console.log(LOG_TAG + ' Check API Key ... Please Wait ...');
@@ -333,7 +330,7 @@ module.exports = function (apiKey) {
     const uploadTokenRequest = https.request({
       hostname: service.host,
       servername: service.hostname,
-      path: '/apiv2/app/getUploadToken',
+      path: '/apiv2/app/getCOSToken',
       method: 'POST',
       agent: false,
       headers: {
@@ -397,19 +394,27 @@ module.exports = function (apiKey) {
       }
 
       const uploadAppRequestData = new FormData();
-      for (const [name, value] of Object.entries(uploadData.data.params)) {
-        uploadAppRequestData.append(name, String(value));
-      }
+      uploadAppRequestData.append('signature', uploadData.data.params.signature);
+      uploadAppRequestData.append('x-cos-security-token', uploadData.data.params['x-cos-security-token']);
+      uploadAppRequestData.append('key', uploadData.data.params.key);
+      uploadAppRequestData.append('x-cos-meta-file-name', path.basename(uploadOptions.filePath));
       uploadAppRequestData.append('file', fs.createReadStream(uploadOptions.filePath));
 
       uploadAppRequestData.submit(uploadData.data.endpoint, function (error, response) {
-        if (response) response.resume();
-        uploadAppRequestData.destroy();
-        // Polling lets the server recover an OSS object whose callback was lost.
-        if (error || response.statusCode < 200 || response.statusCode >= 300) {
-          uploadOptions.log && console.log(LOG_TAG + ' Upload result uncertain; checking buildInfo.');
+        if (error) {
+          uploadAppRequestData.destroy();
+          done(error, null);
+          return;
         }
-        setTimeout(() => getUploadResult(uploadData), 1000);
+
+        response.resume();
+        if (response.statusCode === 204) {
+          setTimeout(() => getUploadResult(uploadData), 1000);
+          uploadAppRequestData.destroy();
+        } else {
+          uploadAppRequestData.destroy();
+          done(new Error(LOG_TAG + ' Upload Error! HTTP status: ' + response.statusCode), null);
+        }
       });
     }
 
@@ -451,7 +456,7 @@ module.exports = function (apiKey) {
           const responseText = responseData.toString();
           try {
             const responseInfo = JSON.parse(responseText);
-            if (responseInfo.code === 1247 || responseInfo.code === 1246) {
+            if (responseInfo.code === 1247) {
               uploadOptions.log && console.log(LOG_TAG + ' Parsing App Data ... Please Wait ...');
               setTimeout(() => getUploadResult(uploadData, retryCount + 1), 1000);
               return;
