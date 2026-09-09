@@ -187,10 +187,24 @@ class PGYERAppUploader
                 throw new Exception('Failed to parse build info response: ' . json_last_error_msg());
             }
 
-            if (($res['code'] ?? -1) != 0) {
-                sleep(1);
+            if (!isset($res['code']) || !is_numeric($res['code'])) {
+                throw new Exception('Invalid build info response: missing or invalid code');
+            }
+
+            $code = (int) $res['code'];
+            if ($code === 1246 || $code === 1247) {
                 $this->log("[$i] get app build info...");
+                if ($i < 59) {
+                    sleep(1);
+                }
                 continue;
+            }
+            if ($code !== 0) {
+                throw new Exception('Build processing failed (code ' . $code . '): ' .
+                    ($res['message'] ?? 'Unknown error'), $code);
+            }
+            if (!isset($res['data']) || !is_array($res['data'])) {
+                throw new Exception('Invalid build info response: missing build data');
             }
 
             $this->log($resp);

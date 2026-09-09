@@ -91,19 +91,34 @@ class PGYERAppUploader
             ApiKey = this._apikey,
             BuildKey = cosTokenResponse.Data.Param.Key
         };
-        for (var time = 1; time <= BuildInfoMaxAttempts; time++)
+        return PollBuildInfo(() => this.BuildInfo(buildInfoRequest), this.Record);
+    }
+
+    internal static Response<BuildInfoResponse> PollBuildInfo(
+        Func<Response<BuildInfoResponse>> fetchBuildInfo, Action<string> log)
+    {
+        for (var attempt = 1; attempt <= BuildInfoMaxAttempts; attempt++)
         {
-            this.Record($"[{time}] get app build info...");
-            Response<BuildInfoResponse> buildInfoResponse = this.BuildInfo(buildInfoRequest);
-            if (buildInfoResponse.Code != 0 || buildInfoResponse.Data == null)
+            log($"[{attempt}] get app build info...");
+            Response<BuildInfoResponse> response = fetchBuildInfo();
+            if (response == null)
+                throw new Exception("Invalid build info response.");
+
+            if (response.Code == 1246 || response.Code == 1247)
             {
-                Thread.Sleep(BuildInfoPollIntervalMs);
+                if (attempt < BuildInfoMaxAttempts)
+                    Thread.Sleep(BuildInfoPollIntervalMs);
                 continue;
             }
-            return buildInfoResponse;
+            if (response.Code != 0)
+                throw new Exception($"Build processing failed (code {response.Code}): {response.Message ?? "Unknown error"}");
+            if (response.Data == null)
+                throw new Exception("Invalid build info response: missing build data.");
+
+            return response;
         }
 
-        throw new TimeoutException($"Build processing timed out after {BuildInfoMaxAttempts} seconds.");
+        throw new TimeoutException($"Build processing timed out after {BuildInfoMaxAttempts} attempts.");
     }
 
     public Response<CosTokenResponse> GetCosToken(CosTokenRequest request)

@@ -52,6 +52,14 @@ The new upload API follows this flow:
 
 The examples in this repository wrap these steps for you. In most cases, you only need to provide your API Key, app package path, and optional release parameters.
 
+## Build result polling
+
+The Java, C#, PHP, and Shell examples continue polling `buildInfo` only for processing codes `1246` and `1247`. Other nonzero business codes stop polling immediately and retain the original error code and message. Code `0` indicates success. Terminal errors such as `1249` require addressing the reported issue, not additional polling.
+
+The limit remains 60 attempts. Request time is additional to each one-second delay, so this is not a strict 60-second deadline. PHP retains its existing `false` return when all attempts remain pending.
+
+See [offline polling regressions](regression/README.md) for verification commands.
+
 ## Common Parameters
 
 | Parameter | Required | Description |
