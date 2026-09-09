@@ -3,8 +3,6 @@
 
 class CosTokenRequest
 {
-    [FormProperty("protocol", true)]
-    public string Protocol { get; set; } = "2";
     [FormProperty("uploadFileName", false)]
     public string UploadFileName { get; set; }
 

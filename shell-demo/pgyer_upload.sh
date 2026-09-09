@@ -429,7 +429,7 @@ getUploadToken() {
     [ -n "$buildInstallStartDate" ]  && curl_args+=(--form-string "buildInstallStartDate=${buildInstallStartDate}")
     [ -n "$buildInstallEndDate" ]    && curl_args+=(--form-string "buildInstallEndDate=${buildInstallEndDate}")
     [ -n "$buildChannelShortcut" ]   && curl_args+=(--form-string "buildChannelShortcut=${buildChannelShortcut}")
-    curl_args+=(--form-string "protocol=2" --form-string "uploadFileName=$(basename "$file")")
+    curl_args+=(--form-string "uploadFileName=$(basename "$file")")
     curl_args+=("${API_BASE_URL}/app/getUploadToken")
 
     log_verbose_command "${curl_args[@]}"

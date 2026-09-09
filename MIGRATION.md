@@ -1,7 +1,7 @@
-# Unified direct uploads (protocol 2)
+# Unified direct uploads
 
 These examples require the server release that supports
-`POST /apiv2/app/getUploadToken` with `protocol=2`. Deploy and validate that release
+`POST /apiv2/app/getUploadToken` with the unified response by default. Deploy and validate that release
 before merging/publishing this branch for general use.
 
 Existing users of `getCOSToken` can keep using their released scripts. Updating to
@@ -11,8 +11,9 @@ Do not hard-code a storage endpoint, field allowlist, or HTTP 204-only success c
 
 The API key, build type, installation settings, channel and final `buildInfo` result
 keep their existing meaning. Original filenames are sent when supported by the example.
-The extra `protocol=2` parameter is mandatory: the unversioned getUploadToken response
-retains its earlier flat OSS format.
+No `protocol` parameter is required or sent. The redesigned getUploadToken always
+returns the unified response; callers of its earlier flat OSS format must update.
+The separate getCOSToken endpoint retains its original COS contract.
 
 After a 2xx response, poll buildInfo until published. OSS 203 CallbackFailed means the
 object may already exist. After a timeout, 409 or other uncertain upload response,

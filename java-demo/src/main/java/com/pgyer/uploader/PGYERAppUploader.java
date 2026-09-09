@@ -147,7 +147,6 @@ public class PGYERAppUploader {
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("_api_key", apiKey);
         params.put("buildType", buildType);
-        params.put("protocol", "2");
         params.put("uploadFileName", file.getName());
 
         String[] otherParams = {

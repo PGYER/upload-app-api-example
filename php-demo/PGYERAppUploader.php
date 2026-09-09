@@ -137,7 +137,6 @@ class PGYERAppUploader
         $params = [
             "_api_key" => $this->apikey,
             "buildType" => $buildType,
-            "protocol" => "2",
             "uploadFileName" => basename($filePath)
         ];
 

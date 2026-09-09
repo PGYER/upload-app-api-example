@@ -325,7 +325,6 @@ module.exports = function (apiKey) {
       }
     });
 
-    tokenParams.protocol = '2';
     tokenParams.uploadFileName = path.basename(uploadOptions.filePath);
     const uploadTokenRequestData = querystring.stringify(tokenParams);
     

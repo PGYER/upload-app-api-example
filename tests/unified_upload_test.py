@@ -34,7 +34,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
             if self.headers.get("Content-Type", "").startswith("multipart/"):
                 form = cgi.FieldStorage(fp=io.BytesIO(body), headers=self.headers,
                     environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": self.headers["Content-Type"]})
-                protocol = form.getvalue("protocol")
+                protocol = form.getvalue("protocol", "")
             else:
                 protocol = parse_qs(body.decode()).get("protocol", [""])[0]
             self.server.protocols.append(protocol)
@@ -84,7 +84,7 @@ class UnifiedUploadTest(unittest.TestCase):
             command = [executable, str(ROOT / ("tests/run_" + language + "." + suffix)), self.server.base, str(self.file)]
         return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
     def assert_upload(self):
-        self.assertEqual(["2"], self.server.protocols)
+        self.assertEqual([""], self.server.protocols)
         self.assertEqual(1, len(self.server.uploads))
         fields = self.server.uploads[0]
         self.assertEqual("file", fields[-1][0])

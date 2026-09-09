@@ -148,7 +148,6 @@ def _get_cos_token(
     channel_shortcut="",
 ):
     payload = {
-        "protocol": "2",
         "_api_key": api_key,
         "buildType": build_type,
         "buildInstallType": install_type,

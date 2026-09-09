@@ -1,4 +1,4 @@
-> 本分支使用统一直传协议（protocol=2），需服务端先上线对应支持。升级方式和测试见 [MIGRATION.md](MIGRATION.md)。
+> 本分支使用 getUploadToken 默认统一直传协议（无需 protocol 参数），需服务端先上线对应支持。升级方式和测试见 [MIGRATION.md](MIGRATION.md)。
 
 # 蒲公英 API 上传 App 代码示例
 
