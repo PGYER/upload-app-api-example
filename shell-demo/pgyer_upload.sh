@@ -175,7 +175,7 @@ print("" if value is None else value)' "$field"
     elif command -v jq >/dev/null 2>&1; then
         jq -r --arg field "$field" '.data[$field] // empty'
     else
-        sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p"
+        sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p" | sed 's|\\/|/|g'
     fi
 }
 
