@@ -20,3 +20,17 @@ dotnet run --project regression/csharp/PollingRegression.csproj -- regression/bu
 ```
 
 The production poll cap remains 60 attempts. This change does not introduce an overall wall-clock deadline or change upload retry policies.
+
+## Shell JSON fallback regressions
+
+Run with Python 3, Bash, and sed:
+
+```sh
+python3 regression/shell/json-fallback.py
+```
+
+The runner puts only the installed sed on the test shell's PATH, forcing the real
+`extractJsonDataField` function to use its fallback even when Python or jq is
+installed. It checks escaped and plain endpoint URLs, ordinary strings, escaped
+slashes in an app name, missing fields, and empty fields. No network requests are
+made, and the host's installed tools are unchanged.
